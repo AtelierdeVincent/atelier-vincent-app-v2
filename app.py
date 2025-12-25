@@ -105,7 +105,30 @@ from openpyxl import load_workbook
 import locale
 
 # Pour avoir les jours/mois en français
-locale.setlocale(locale.LC_TIME, "fr_FR.UTF-8")
+jours_fr = {
+    "Monday": "Lundi",
+    "Tuesday": "Mardi",
+    "Wednesday": "Mercredi",
+    "Thursday": "Jeudi",
+    "Friday": "Vendredi",
+    "Saturday": "Samedi",
+    "Sunday": "Dimanche"
+}
+
+mois_fr = {
+    "January": "janvier",
+    "February": "février",
+    "March": "mars",
+    "April": "avril",
+    "May": "mai",
+    "June": "juin",
+    "July": "juillet",
+    "August": "août",
+    "September": "septembre",
+    "October": "octobre",
+    "November": "novembre",
+    "December": "décembre"
+}
 
 def ajouter_transaction(fichier_excel, date, montant, notes=""):
     """
