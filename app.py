@@ -16,7 +16,20 @@ import os
 import calendar
 import locale
 import time
-locale.setlocale(locale.LC_TIME, "fr_FR.UTF-8")
+
+# Configuration du locale français (avec gestion d'erreur pour Streamlit Cloud)
+try:
+    locale.setlocale(locale.LC_TIME, "fr_FR.UTF-8")
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_TIME, "fr_FR")
+    except locale.Error:
+        try:
+            locale.setlocale(locale.LC_TIME, "French_France.1252")
+        except locale.Error:
+            # Si aucun locale français n'est disponible, on continue sans
+            # Les noms de jours/mois sont déjà en français dans le code
+            pass
 
 # ==================== CONFIGURATION ====================
 
@@ -482,7 +495,27 @@ if os.path.exists(fichier_excel):
                             st.error(message)
                             
             st.markdown("---")
-           
+
+
+            # ========== SECTION 5 : FEUILLE DU MOIS ==========
+            st.subheader(f"📋 Détail du mois en cours : {date_n.strftime('%B %Y').capitalize()}")
+            
+            df_mois_actuel = df[(df['date'].dt.month == mois_actuel) & (df['date'].dt.year == annee_actuelle)]
+            
+            if len(df_mois_actuel) > 0:
+                df_affichage = df_mois_actuel[['date', 'montant']].copy()
+                df_affichage['date'] = df_affichage['date'].dt.strftime('%d/%m/%Y')
+                df_affichage['montant'] = df_affichage['montant'].apply(formater_euro)
+                df_affichage = df_affichage.sort_values('date', ascending=False)
+                df_affichage.columns = ['Date', 'Montant']
+                
+                st.dataframe(df_affichage, hide_index=True, use_container_width=True)
+                
+                total_mois = df_mois_actuel['montant'].sum()
+                st.markdown(f"**Total du mois : {formater_euro(total_mois)}**")
+            else:
+                st.info("Aucune donnée pour ce mois")
+
         # ==================== AUTRES PAGES ====================
         
         elif page == "📊 Suivi":
@@ -607,11 +640,11 @@ if os.path.exists(fichier_excel):
                 height=600,
                 column_config={
                     "Jour": st.column_config.TextColumn("Jour", width="small"),
-                    "Date N-1": st.column_config.TextColumn("Date N-1", width="small"),
-                    "Date N": st.column_config.TextColumn("Date N", width="small"),
-                    "Montant N-1": st.column_config.TextColumn("Montant N-1", width="small"),
+                    "Date N-1": st.column_config.TextColumn("Date N-1", width="medium"),
+                    "Date N": st.column_config.TextColumn("Date N", width="medium"),
+                    "Montant N-1": st.column_config.TextColumn("Montant N-1", width="medium"),
                     "Nb Collab N-1": st.column_config.TextColumn("Nb Collab N-1", width="small"),
-                    "Montant N": st.column_config.TextColumn("Montant N", width="small"),
+                    "Montant N": st.column_config.TextColumn("Montant N", width="medium"),
                     "Nb Collab N": st.column_config.TextColumn("Nb Collab N", width="small")
                 }
             )
