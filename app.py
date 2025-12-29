@@ -567,7 +567,7 @@ if os.path.exists(fichier_excel):
             
             with col_jauge:
                 # Barre de progression simple
-                st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}** (Mois 2024/2025 +4%)")
+                st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}**")
     
                 # Calcul du pourcentage par rapport à l'objectif COMPLET du mois
                 pourcentage_vers_objectif = (cumul_mois_n / objectif_mois * 100) if objectif_mois > 0 else 0
