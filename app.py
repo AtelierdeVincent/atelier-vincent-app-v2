@@ -517,7 +517,6 @@ if os.path.exists(fichier_excel):
             st.markdown("---")
             
             # ========== SECTION 2 : MENSUEL ==========
-            st.subheader("📊 Comparaison Mensuelle")
             
             mois_actuel = date_n.month
             annee_actuelle = date_n.year
@@ -542,6 +541,83 @@ if os.path.exists(fichier_excel):
             
             df_mois_n_moins_1 = df[(df['date'] >= debut_mois_n_moins_1) & (df['date'] <= fin_mois_n_moins_1)]
             cumul_mois_n_moins_1 = df_mois_n_moins_1['montant'].sum()
+            
+            # Calculer l'objectif : CA mois N-1 complet + 4%
+            # On prend le mois COMPLET de N-1 (pas juste les jours écoulés)
+            debut_mois_complet_n_moins_1 = datetime(annee_n_moins_1, mois_n_moins_1, 1)
+            fin_mois_complet_n_moins_1 = datetime(annee_n_moins_1, mois_n_moins_1, dernier_jour_mois_n_moins_1)
+            df_mois_complet_n_moins_1 = df[(df['date'] >= debut_mois_complet_n_moins_1) & (df['date'] <= fin_mois_complet_n_moins_1)]
+            ca_mois_complet_n_moins_1 = df_mois_complet_n_moins_1['montant'].sum()
+            
+            # Objectif = CA mois N-1 complet + 4%
+            objectif_mois = ca_mois_complet_n_moins_1 * 1.04
+            
+            # Pourcentage de progression vers l'objectif (proratisé sur les jours écoulés)
+            # Objectif proratisé = objectif_mois * (nb_jours_ecoules / nb_jours_du_mois)
+            nb_jours_mois_n = calendar.monthrange(annee_actuelle, mois_actuel)[1]
+            objectif_proratise = objectif_mois * (nb_jours_ecoules / nb_jours_mois_n)
+            
+            pourcentage_objectif = (cumul_mois_n / objectif_proratise * 100) if objectif_proratise > 0 else 0
+            
+            # Afficher le titre et la jauge côte à côte
+            col_titre, col_jauge = st.columns([1, 2])
+            
+            with col_titre:
+                st.subheader("📊 Comparaison Mensuelle")
+            
+            with col_jauge:
+                # Créer une jauge horizontale avec Plotly
+                fig_jauge_mois = {
+                    "data": [
+                        {
+                            "type": "indicator",
+                            "mode": "gauge+number",
+                            "value": pourcentage_objectif,
+                            "number": {"suffix": "%", "font": {"size": 20, "color": "#A89332"}},
+                            "gauge": {
+                                "axis": {
+                                    "range": [0, 120],
+                                    "tickwidth": 1,
+                                    "tickcolor": "lightgray",
+                                    "ticksuffix": "%"
+                                },
+                                "bar": {"color": "#A89332", "thickness": 0.8},
+                                "bgcolor": "white",
+                                "borderwidth": 1,
+                                "bordercolor": "gray",
+                                "steps": [
+                                    {"range": [0, 90], "color": "#FFE5E5"},
+                                    {"range": [90, 100], "color": "#FFF5E5"},
+                                    {"range": [100, 120], "color": "#E5F5E5"}
+                                ],
+                                "threshold": {
+                                    "line": {"color": "green", "width": 3},
+                                    "thickness": 0.8,
+                                    "value": 100
+                                }
+                            },
+                            "domain": {"x": [0, 1], "y": [0.2, 0.8]}
+                        }
+                    ],
+                    "layout": {
+                        "margin": {"t": 10, "b": 10, "l": 20, "r": 20},
+                        "height": 120,
+                        "font": {"family": "Arial, sans-serif", "size": 11},
+                        "annotations": [
+                            {
+                                "text": f"<b>Objectif mois :</b> {formater_euro(objectif_mois)}<br><span style='font-size:0.85em'>Réalisé : {formater_euro(cumul_mois_n)} / {formater_euro(objectif_proratise)} (proratisé)</span>",
+                                "x": 0.5,
+                                "y": 0,
+                                "xanchor": "center",
+                                "yanchor": "top",
+                                "showarrow": False,
+                                "font": {"size": 11}
+                            }
+                        ]
+                    }
+                }
+                
+                st.plotly_chart(fig_jauge_mois, use_container_width=True, config={'displayModeBar': False})
             
             evolution_mois_euro = cumul_mois_n - cumul_mois_n_moins_1
             evolution_mois_pct = (evolution_mois_euro / cumul_mois_n_moins_1 * 100) if cumul_mois_n_moins_1 != 0 else 0
