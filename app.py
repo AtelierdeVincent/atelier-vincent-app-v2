@@ -375,6 +375,97 @@ if os.path.exists(fichier_excel):
             
             derniere_date_str = derniere_date.strftime("%d/%m/%Y")
             st.markdown(f"### Voici où nous en sommes à la date du : **{derniere_date_str}**")
+            
+            # ========== GRAPHIQUE DE PROGRESSION EXERCICE 2025/2026 ==========
+            
+            # Calculer le CA actuel de l'exercice 2025/2026
+            exercice_actuel = "2025/2026"
+            objectif_ca = 157000  # Objectif en euros
+            
+            # Filtrer les données de l'exercice 2025/2026
+            df_exercice_actuel = df[df['exercice'] == exercice_actuel]
+            ca_actuel = df_exercice_actuel['montant'].sum()
+            
+            # Pourcentage de progression
+            pourcentage_progression = (ca_actuel / objectif_ca * 100) if objectif_ca > 0 else 0
+            
+            # Créer le graphique gauge (jauge)
+            fig_gauge = px.pie(
+                values=[ca_actuel, max(0, objectif_ca - ca_actuel)],
+                names=['Réalisé', 'Restant'],
+                hole=0.7,
+                color_discrete_sequence=['#A89332', '#E5E5E5']
+            )
+            
+            # Mise en forme pour ressembler à une jauge en demi-cercle
+            fig_gauge.update_traces(
+                textposition='none',
+                hovertemplate='%{label}: %{value:,.0f} €<extra></extra>'
+            )
+            
+            fig_gauge.update_layout(
+                showlegend=False,
+                margin=dict(t=0, b=0, l=0, r=0),
+                height=250,
+                annotations=[
+                    dict(
+                        text=f'<b>{formater_euro(ca_actuel)}</b><br><span style="font-size:14px">{pourcentage_progression:.1f}% de l\'objectif</span>',
+                        x=0.5, y=0.5,
+                        font_size=20,
+                        showarrow=False,
+                        font_color='#A89332'
+                    )
+                ]
+            )
+            
+            # Alternative : Utiliser un vrai gauge indicator
+            fig_gauge_alt = {
+                "data": [
+                    {
+                        "type": "indicator",
+                        "mode": "gauge+number+delta",
+                        "value": ca_actuel,
+                        "domain": {"x": [0, 1], "y": [0, 1]},
+                        "title": {"text": f"<b>Objectif Exercice {exercice_actuel}</b><br><span style='font-size:0.8em'>Objectif : {formater_euro(objectif_ca)}</span>", "font": {"size": 16}},
+                        "delta": {"reference": objectif_ca, "valueformat": ",.0f", "suffix": " €"},
+                        "number": {"valueformat": ",.0f", "suffix": " €", "font": {"size": 28, "color": "#A89332"}},
+                        "gauge": {
+                            "axis": {
+                                "range": [None, objectif_ca],
+                                "tickwidth": 1,
+                                "tickcolor": "gray",
+                                "tickformat": ",.0f"
+                            },
+                            "bar": {"color": "#A89332", "thickness": 0.75},
+                            "bgcolor": "white",
+                            "borderwidth": 2,
+                            "bordercolor": "gray",
+                            "steps": [
+                                {"range": [0, objectif_ca * 0.5], "color": "#FFE5E5"},
+                                {"range": [objectif_ca * 0.5, objectif_ca * 0.8], "color": "#FFF5E5"},
+                                {"range": [objectif_ca * 0.8, objectif_ca], "color": "#E5F5E5"}
+                            ],
+                            "threshold": {
+                                "line": {"color": "red", "width": 4},
+                                "thickness": 0.75,
+                                "value": objectif_ca
+                            }
+                        }
+                    }
+                ],
+                "layout": {
+                    "margin": {"t": 80, "b": 40, "l": 40, "r": 40},
+                    "height": 300,
+                    "font": {"family": "Arial, sans-serif"}
+                }
+            }
+            
+            # Afficher le graphique
+            col_gauge1, col_gauge2, col_gauge3 = st.columns([1, 2, 1])
+            
+            with col_gauge2:
+                st.plotly_chart(fig_gauge_alt, use_container_width=True, config={'displayModeBar': False})
+            
             st.markdown("---")
             
             # ========== SECTION 1 : JOURNALIER ==========
