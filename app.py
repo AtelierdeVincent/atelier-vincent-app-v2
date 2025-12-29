@@ -16,6 +16,13 @@ import os
 import calendar
 import locale
 import time
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from io import BytesIO
 
 # Configuration du locale français (avec gestion d'erreur pour Streamlit Cloud)
 try:
@@ -110,6 +117,129 @@ def calculer_exercice(date):
 def formater_euro(montant):
     """Formate un nombre en euros français"""
     return f"{montant:,.2f} €".replace(",", " ").replace(".", ",")
+
+def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_mois_n_moins_1, total_n, total_n_moins_1, evolution_euro, evolution_pct):
+    """Génère un PDF du tableau de suivi mensuel optimisé pour tenir sur une page A4 paysage"""
+    buffer = BytesIO()
+    
+    # Créer le document en mode paysage
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=1*cm,
+        leftMargin=1*cm,
+        topMargin=1.5*cm,
+        bottomMargin=1*cm
+    )
+    
+    elements = []
+    
+    # Ajouter le logo en haut
+    try:
+        logo_path = "assets/logo_noir.png"
+        if os.path.exists(logo_path):
+            logo = RLImage(logo_path, width=3*cm, height=3*cm)
+            elements.append(logo)
+            elements.append(Spacer(1, 0.3*cm))
+    except:
+        pass
+    
+    # Titre
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=14,
+        textColor=colors.black,
+        spaceAfter=12,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    title_text = f"Suivi Mensuel - {mois_selectionne} {annee_mois_n} vs {mois_selectionne} {annee_mois_n_moins_1}"
+    title = Paragraph(title_text, title_style)
+    elements.append(title)
+    elements.append(Spacer(1, 0.3*cm))
+    
+    # Préparer les données du tableau
+    table_data = [['Jour', 'Date N-1', 'Date N', 'Montant N-1', 'Nb C. N-1', 'Montant N', 'Nb C. N']]
+    
+    for row in donnees_tableau:
+        table_data.append([
+            row['Jour'][:3],  # Abréger les jours (Lun, Mar, etc.)
+            row['Date N-1'],
+            row['Date N'],
+            row['Montant N-1'],
+            row['Nb Collab N-1'],
+            row['Montant N'],
+            row['Nb Collab N']
+        ])
+    
+    # Créer le tableau avec des largeurs optimisées
+    col_widths = [2*cm, 2.5*cm, 2.5*cm, 3*cm, 1.8*cm, 3*cm, 1.8*cm]
+    
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    
+    # Style du tableau
+    table.setStyle(TableStyle([
+        # En-tête
+        ('BACKGROUND', (0, 0), (-1, 0), colors.black),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        
+        # Corps du tableau
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ('TOPPADDING', (0, 1), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+    ]))
+    
+    elements.append(table)
+    elements.append(Spacer(1, 0.4*cm))
+    
+    # Totaux
+    totaux_style = ParagraphStyle(
+        'Totaux',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.black,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    totaux_text = f"""
+    <b>Total {mois_selectionne} {annee_mois_n_moins_1}:</b> {formater_euro(total_n_moins_1)} | 
+    <b>Total {mois_selectionne} {annee_mois_n}:</b> {formater_euro(total_n)} | 
+    <b>Évolution:</b> {formater_euro(evolution_euro)} ({evolution_pct:+.1f}%)
+    """
+    
+    totaux = Paragraph(totaux_text, totaux_style)
+    elements.append(totaux)
+    
+    # Pied de page
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=TA_CENTER
+    )
+    
+    date_generation = datetime.now().strftime("%d/%m/%Y à %H:%M")
+    footer = Paragraph(f"<i>Document généré le {date_generation} - L'Atelier de Vincent</i>", footer_style)
+    elements.append(Spacer(1, 0.3*cm))
+    elements.append(footer)
+    
+    # Construire le PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
 
 def enregistrer_transaction(fichier_excel, date_saisie, montant, nb_collaborateurs):
     """Enregistre une nouvelle transaction dans la feuille Données"""
@@ -500,6 +630,26 @@ if os.path.exists(fichier_excel):
                             
             st.markdown("---")
 
+
+            # ========== SECTION 5 : FEUILLE DU MOIS ==========
+            st.subheader(f"📋 Détail du mois en cours : {date_n.strftime('%B %Y').capitalize()}")
+            
+            df_mois_actuel = df[(df['date'].dt.month == mois_actuel) & (df['date'].dt.year == annee_actuelle)]
+            
+            if len(df_mois_actuel) > 0:
+                df_affichage = df_mois_actuel[['date', 'montant']].copy()
+                df_affichage['date'] = df_affichage['date'].dt.strftime('%d/%m/%Y')
+                df_affichage['montant'] = df_affichage['montant'].apply(formater_euro)
+                df_affichage = df_affichage.sort_values('date', ascending=False)
+                df_affichage.columns = ['Date', 'Montant']
+                
+                st.dataframe(df_affichage, hide_index=True, use_container_width=True)
+                
+                total_mois = df_mois_actuel['montant'].sum()
+                st.markdown(f"**Total du mois : {formater_euro(total_mois)}**")
+            else:
+                st.info("Aucune donnée pour ce mois")
+
         # ==================== AUTRES PAGES ====================
         
         elif page == "📊 Suivi":
@@ -572,6 +722,9 @@ if os.path.exists(fichier_excel):
         
             # ========== CRÉATION DU TABLEAU ==========
             st.subheader(f"📋 {mois_selectionne} {annee_mois_n} vs {mois_selectionne} {annee_mois_n_moins_1}")
+            
+            # Bouton Export PDF (sera activé après calcul des données)
+            placeholder_pdf_button = st.empty()
         
             # Créer les données du tableau
             donnees_tableau = []
@@ -615,6 +768,43 @@ if os.path.exists(fichier_excel):
         
             # Créer le DataFrame
             df_tableau = pd.DataFrame(donnees_tableau)
+            
+            # Calculer les totaux pour le PDF (avant l'affichage)
+            debut_mois_n = datetime(annee_mois_n, mois_numero, 1)
+            fin_mois_n = datetime(annee_mois_n, mois_numero, nb_jours_mois)
+            df_mois_n = df[(df['date'] >= debut_mois_n) & (df['date'] <= fin_mois_n)]
+            total_n = df_mois_n['montant'].sum()
+            
+            debut_mois_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, 1)
+            fin_mois_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, nb_jours_mois)
+            df_mois_n_moins_1 = df[(df['date'] >= debut_mois_n_moins_1) & (df['date'] <= fin_mois_n_moins_1)]
+            total_n_moins_1 = df_mois_n_moins_1['montant'].sum()
+            
+            evolution_euro = total_n - total_n_moins_1
+            evolution_pct = (evolution_euro / total_n_moins_1 * 100) if total_n_moins_1 != 0 else 0
+            
+            # Bouton Export PDF avec le placeholder
+            with placeholder_pdf_button:
+                pdf_buffer = generer_pdf_suivi(
+                    donnees_tableau, 
+                    mois_selectionne, 
+                    annee_mois_n, 
+                    annee_mois_n_moins_1,
+                    total_n,
+                    total_n_moins_1,
+                    evolution_euro,
+                    evolution_pct
+                )
+                
+                st.download_button(
+                    label="📄 Exporter en PDF",
+                    data=pdf_buffer,
+                    file_name=f"Suivi_{mois_selectionne}_{annee_mois_n}.pdf",
+                    mime="application/pdf",
+                    use_container_width=False
+                )
+            
+            st.markdown("---")
         
             # Afficher le tableau
             st.dataframe(
@@ -635,22 +825,6 @@ if os.path.exists(fichier_excel):
         
             # ========== TOTAUX ==========
             st.markdown("---")
-        
-            # Filtrer les données du mois complet
-            debut_mois_n = datetime(annee_mois_n, mois_numero, 1)
-            fin_mois_n = datetime(annee_mois_n, mois_numero, nb_jours_mois)
-        
-            df_mois_n = df[(df['date'] >= debut_mois_n) & (df['date'] <= fin_mois_n)]
-            total_n = df_mois_n['montant'].sum()
-        
-            debut_mois_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, 1)
-            fin_mois_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, nb_jours_mois)
-        
-            df_mois_n_moins_1 = df[(df['date'] >= debut_mois_n_moins_1) & (df['date'] <= fin_mois_n_moins_1)]
-            total_n_moins_1 = df_mois_n_moins_1['montant'].sum()
-        
-            evolution_euro = total_n - total_n_moins_1
-            evolution_pct = (evolution_euro / total_n_moins_1 * 100) if total_n_moins_1 != 0 else 0
         
             col1, col2, col3, col4 = st.columns(4)
         
