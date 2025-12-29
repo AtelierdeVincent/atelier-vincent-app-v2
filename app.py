@@ -565,24 +565,22 @@ if os.path.exists(fichier_excel):
             with col_titre:
                 st.subheader("📊 Comparaison Mensuelle")
             
-with col_jauge:
-    # Barre de progression simple
-    st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}** (Mois 2024/2025 +4%)")
-    
-    # Calcul du pourcentage
-    progress_value = min(pourcentage_objectif / 100, 1.0)  # Entre 0 et 1
-    
-    # Afficher la barre de progression
-    st.progress(progress_value)
-    
-    # Affichage des détails
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.metric("Réalisé", formater_euro(cumul_mois_n))
-    with col_b:
-        st.metric("Progression", f"{pourcentage_objectif:.1f}%")
-
-                               
+            with col_jauge:
+                # Barre de progression simple
+                st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}** (Mois 2024/2025 +4%)")
+                
+                # Calcul du pourcentage
+                progress_value = min(pourcentage_objectif / 100, 1.0)  # Entre 0 et 1
+                
+                # Afficher la barre de progression
+                st.progress(progress_value)
+                
+                # Affichage des détails
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric("Réalisé", formater_euro(cumul_mois_n))
+                with col_b:
+                    st.metric("Progression", f"{pourcentage_objectif:.1f}%")
             
             evolution_mois_euro = cumul_mois_n - cumul_mois_n_moins_1
             evolution_mois_pct = (evolution_mois_euro / cumul_mois_n_moins_1 * 100) if cumul_mois_n_moins_1 != 0 else 0
