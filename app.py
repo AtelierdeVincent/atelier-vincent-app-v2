@@ -565,28 +565,27 @@ if os.path.exists(fichier_excel):
             with col_titre:
                 st.subheader("📊 Comparaison Mensuelle")
             
-with col_jauge:
-    st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}** (Mois 2024/2025 +4%)")
+            with col_jauge:
+                st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}** (Mois 2024/2025 +4%)")
     
-    progress_value = min(pourcentage_objectif / 100, 1.0)
-    st.progress(progress_value)
+                progress_value = min(pourcentage_objectif / 100, 1.0)
+                st.progress(progress_value)
     
-    # Légendes avec jalons
-    col_0, col_25, col_50, col_75, col_100 = st.columns(5)
-    with col_0:
-        st.markdown("<small>0€</small>", unsafe_allow_html=True)
-    with col_25:
-        st.markdown(f"<small>25%</small>", unsafe_allow_html=True)
-    with col_50:
-        st.markdown(f"<small style='color: #A89332;'><b>50%</b></small>", unsafe_allow_html=True)
-    with col_75:
-        st.markdown(f"<small>75%</small>", unsafe_allow_html=True)
-    with col_100:
-        st.markdown(f"<small style='text-align: right; display: block;'>{formater_euro(objectif_proratise)}</small>", unsafe_allow_html=True)
+                # Légendes avec jalons
+                col_0, col_25, col_50, col_75, col_100 = st.columns(5)
+                with col_0:
+                    st.markdown("<small>0€</small>", unsafe_allow_html=True)
+                with col_25:
+                    st.markdown(f"<small>25%</small>", unsafe_allow_html=True)
+                with col_50:
+                    st.markdown(f"<small style='color: #A89332;'><b>50%</b></small>", unsafe_allow_html=True)
+                with col_75:
+                    st.markdown(f"<small>75%</small>", unsafe_allow_html=True)
+                with col_100:
+                    st.markdown(f"<small style='text-align: right; display: block;'>{formater_euro(objectif_proratise)}</small>", unsafe_allow_html=True)
     
-    # Infos réalisé
-    st.markdown(f"<center><b>Réalisé : {formater_euro(cumul_mois_n)}</b> ({pourcentage_objectif:.1f}%)</center>", unsafe_allow_html=True)
-                
+                # Infos réalisé
+                st.markdown(f"<center><b>Réalisé : {formater_euro(cumul_mois_n)}</b> ({pourcentage_objectif:.1f}%)</center>", unsafe_allow_html=True)
                             
             evolution_mois_euro = cumul_mois_n - cumul_mois_n_moins_1
             evolution_mois_pct = (evolution_mois_euro / cumul_mois_n_moins_1 * 100) if cumul_mois_n_moins_1 != 0 else 0
