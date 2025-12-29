@@ -487,25 +487,6 @@ if os.path.exists(fichier_excel):
             st.markdown("---")
 
 
-            # ========== SECTION 5 : FEUILLE DU MOIS ==========
-            st.subheader(f"📋 Détail du mois en cours : {date_n.strftime('%B %Y').capitalize()}")
-            
-            df_mois_actuel = df[(df['date'].dt.month == mois_actuel) & (df['date'].dt.year == annee_actuelle)]
-            
-            if len(df_mois_actuel) > 0:
-                df_affichage = df_mois_actuel[['date', 'montant']].copy()
-                df_affichage['date'] = df_affichage['date'].dt.strftime('%d/%m/%Y')
-                df_affichage['montant'] = df_affichage['montant'].apply(formater_euro)
-                df_affichage = df_affichage.sort_values('date', ascending=False)
-                df_affichage.columns = ['Date', 'Montant']
-                
-                st.dataframe(df_affichage, hide_index=True, use_container_width=True)
-                
-                total_mois = df_mois_actuel['montant'].sum()
-                st.markdown(f"**Total du mois : {formater_euro(total_mois)}**")
-            else:
-                st.info("Aucune donnée pour ce mois")
-
         # ==================== AUTRES PAGES ====================
         
         elif page == "📊 Suivi":
