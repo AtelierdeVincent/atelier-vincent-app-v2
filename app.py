@@ -45,32 +45,25 @@ st.set_page_config(
 def verifier_mot_de_passe():
     """Retourne True si le mot de passe est correct."""
     
-    def password_entered():
-        """Vérifie si le mot de passe est correct."""
-        if st.session_state["password"] == "3108":
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
     if st.session_state.get("password_correct", False):
         return True
 
     st.title("🔒 L'Atelier de Vincent")
     st.markdown("### Veuillez vous connecter pour accéder à l'application")
     
-    st.text_input(
+    password = st.text_input(
         "Mot de passe", 
-        type="password", 
-        on_change=password_entered, 
-        key="password",
+        type="password",
         placeholder="Entrez le mot de passe"
     )
     
-    if "password_correct" in st.session_state:
-        st.error("😕 Mot de passe incorrect. Réessayez.")
+    if st.button("Se connecter", use_container_width=True):
+        if password == "3108":
+            st.session_state["password_correct"] = True
+            st.rerun()
+        else:
+            st.error("😕 Mot de passe incorrect. Réessayez.")
     
-       
     return False
 
 # ==================== FONCTIONS UTILES ====================
@@ -487,9 +480,6 @@ if os.path.exists(fichier_excel):
                             st.success(message)
                             st.balloons()
                             st.cache_data.clear()
-                            # Rafraîchissement automatique après 2 secondes
-                            import time
-                            time.sleep(2)
                             st.rerun()
                         else:
                             st.error(message)
