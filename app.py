@@ -11,6 +11,7 @@ Date : Décembre 2024
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
 import calendar
@@ -34,20 +35,18 @@ except locale.Error:
         try:
             locale.setlocale(locale.LC_TIME, "French_France.1252")
         except locale.Error:
-            # Si aucun locale français n'est disponible, on continue sans
-            # Les noms de jours/mois sont déjà en français dans le code
             pass
 
 # ==================== CONFIGURATION ====================
 
 st.set_page_config(
     page_title="L'Atelier de Vincent",
-    page_icon="assets/logo.png",  # Utilise votre logo comme favicon
+    page_icon="assets/logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Configuration PWA pour utiliser votre logo sur mobile
+# Configuration PWA
 st.markdown("""
     <head>
         <meta name="application-name" content="L'Atelier de Vincent">
@@ -122,10 +121,9 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     """Génère un PDF du tableau de suivi mensuel optimisé pour tenir sur une page A4 portrait"""
     buffer = BytesIO()
     
-    # Créer le document en mode portrait
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=A4,  # Mode portrait
+        pagesize=A4,
         rightMargin=0.8*cm,
         leftMargin=0.8*cm,
         topMargin=1.5*cm,
@@ -134,7 +132,6 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     
     elements = []
     
-    # Ajouter le logo en haut
     try:
         logo_path = "assets/logo_noir.png"
         if os.path.exists(logo_path):
@@ -144,7 +141,6 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     except:
         pass
     
-    # Titre
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'CustomTitle',
@@ -161,12 +157,11 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     elements.append(title)
     elements.append(Spacer(1, 0.2*cm))
     
-    # Préparer les données du tableau
     table_data = [['Jour', 'Date N-1', 'Date N', 'Montant N-1', 'Nb C. N-1', 'Montant N', 'Nb C. N']]
     
     for row in donnees_tableau:
         table_data.append([
-            row['Jour'][:3],  # Abréger les jours (Lun, Mar, etc.)
+            row['Jour'][:3],
             row['Date N-1'],
             row['Date N'],
             row['Montant N-1'],
@@ -175,15 +170,11 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
             row['Nb Collab N']
         ])
     
-    # Créer le tableau avec des largeurs optimisées pour portrait
-    # Largeur totale disponible : environ 19 cm
     col_widths = [1.5*cm, 2.2*cm, 2.2*cm, 2.8*cm, 1.4*cm, 2.8*cm, 1.4*cm]
     
     table = Table(table_data, colWidths=col_widths, repeatRows=1)
     
-    # Style du tableau
     table.setStyle(TableStyle([
-        # En-tête
         ('BACKGROUND', (0, 0), (-1, 0), colors.black),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -191,675 +182,601 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
         ('FONTSIZE', (0, 0), (-1, 0), 7),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         ('TOPPADDING', (0, 0), (-1, 0), 6),
-        
-        # Corps du tableau
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
+        ('TOPPADDING', (0, 1), (-1, -1), 3),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-        ('TOPPADDING', (0, 1), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
     ]))
     
     elements.append(table)
     elements.append(Spacer(1, 0.3*cm))
     
-    # Totaux
-    totaux_style = ParagraphStyle(
-        'Totaux',
-        parent=styles['Normal'],
-        fontSize=9,
-        textColor=colors.black,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
-    )
+    totaux_data = [
+        ['', f'{mois_selectionne} {annee_mois_n_moins_1}', f'{mois_selectionne} {annee_mois_n}', 'Évolution €', 'Évolution %'],
+        ['Total', formater_euro(total_n_moins_1), formater_euro(total_n), formater_euro(evolution_euro), f"{evolution_pct:+.1f}%"]
+    ]
     
-    totaux_text = f"""
-    <b>Total {mois_selectionne} {annee_mois_n_moins_1}:</b> {formater_euro(total_n_moins_1)} | 
-    <b>Total {mois_selectionne} {annee_mois_n}:</b> {formater_euro(total_n)} | 
-    <b>Évolution:</b> {formater_euro(evolution_euro)} ({evolution_pct:+.1f}%)
-    """
+    totaux_table = Table(totaux_data, colWidths=[3*cm, 3.5*cm, 3.5*cm, 3*cm, 2.5*cm])
+    totaux_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.black),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, 1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),
+    ]))
     
-    totaux = Paragraph(totaux_text, totaux_style)
-    elements.append(totaux)
+    elements.append(totaux_table)
     
-    # Pied de page
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=7,
-        textColor=colors.grey,
-        alignment=TA_CENTER
-    )
-    
-    date_generation = datetime.now().strftime("%d/%m/%Y à %H:%M")
-    footer = Paragraph(f"<i>Document généré le {date_generation} - L'Atelier de Vincent</i>", footer_style)
-    elements.append(Spacer(1, 0.2*cm))
-    elements.append(footer)
-    
-    # Construire le PDF
     doc.build(elements)
+    
     buffer.seek(0)
     return buffer
 
-def enregistrer_transaction(fichier_excel, date_saisie, montant, nb_collaborateurs):
-    """Enregistre une nouvelle transaction dans la feuille Données"""
-    try:
-        from openpyxl import load_workbook
-        from datetime import datetime as dt
-        
-        # Charger le workbook
-        wb = load_workbook(fichier_excel, keep_vba=True)
-        ws = wb['Données']
-        
-        # Préparer les données
-        annee = date_saisie.year
-        date_str = date_saisie.strftime('%Y-%m-%d')
-        cle = f"{annee}|{date_str}"
-        
-        # Noms des jours et mois en français
-        jours_fr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-        mois_fr = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 
-                   'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-        
-        jour_semaine = jours_fr[date_saisie.weekday()]
-        mois_nom = mois_fr[date_saisie.month - 1]
-        
-        # Vérifier si la date existe déjà (comparer la DATE, pas la clé)
-        ligne_existante = None
-        for row in range(2, ws.max_row + 1):
-            cell_date = ws.cell(row, 3).value  # Colonne C : Date
-            
-            # Convertir en datetime si nécessaire
-            if cell_date:
-                if isinstance(cell_date, str):
-                    try:
-                        cell_date = dt.strptime(cell_date, '%Y-%m-%d')
-                    except:
-                        continue
-                
-                # Comparer uniquement la date (sans l'heure)
-                if isinstance(cell_date, dt):
-                    if cell_date.date() == date_saisie.date():
-                        ligne_existante = row
-                        break
-        
-        if ligne_existante:
-            if montant == 0:
-                # SUPPRESSION : Montant = 0
-                ws.delete_rows(ligne_existante)
-                message = f"🗑️ Transaction SUPPRIMÉE pour le {date_saisie.strftime('%d/%m/%Y')}"
-            else:
-                # MISE À JOUR : La date existe déjà
-                ws.cell(row=ligne_existante, column=6, value=montant)
-                ws.cell(row=ligne_existante, column=7, value=nb_collaborateurs)
-                message = f"✅ Transaction MISE À JOUR : {formater_euro(montant)} le {date_saisie.strftime('%d/%m/%Y')} ({nb_collaborateurs} collaborateur{'s' if nb_collaborateurs > 1 else ''})"
-        else:
-            if montant == 0:
-                # Pas de création si montant = 0 et date inexistante
-                message = f"ℹ️ Aucune donnée à supprimer pour le {date_saisie.strftime('%d/%m/%Y')}"
-            else:
-                # AJOUT : Nouvelle date
-                prochaine_ligne = ws.max_row + 1
-                
-                ws.cell(row=prochaine_ligne, column=1, value=cle)
-                ws.cell(row=prochaine_ligne, column=2, value=annee)
-                ws.cell(row=prochaine_ligne, column=3, value=date_saisie)
-                ws.cell(row=prochaine_ligne, column=4, value=jour_semaine)
-                ws.cell(row=prochaine_ligne, column=5, value=mois_nom)
-                ws.cell(row=prochaine_ligne, column=6, value=montant)
-                ws.cell(row=prochaine_ligne, column=7, value=nb_collaborateurs)
-                
-                message = f"✅ Transaction AJOUTÉE : {formater_euro(montant)} le {date_saisie.strftime('%d/%m/%Y')} ({nb_collaborateurs} collaborateur{'s' if nb_collaborateurs > 1 else ''})"
-        
-        # Sauvegarder
-        wb.save(fichier_excel)
-        wb.close()
-        
-        return True, message
-        
-    except Exception as e:
-        return False, f"❌ Erreur lors de l'enregistrement : {str(e)}"
-
-# ==================== SIDEBAR ====================
-
-st.sidebar.title("📊 L'Atelier de Vincent")
-st.sidebar.markdown("---")
-
-fichier_excel = st.sidebar.text_input(
-    "📁 Chemin du fichier Excel",
-    value="CA_Atelier_Vincent_B2C2_vers_D4E4.xlsm",
-    help="Entrez le chemin complet de votre fichier Excel"
-)
-
-page = st.sidebar.radio(
-    "Navigation",
-    ["🏠 Accueil", "📊 Suivi", "📈 Historique", "➕ Saisie", "⚙️ Données brutes"]
-)
-
-st.sidebar.markdown("---")
-st.sidebar.info("💡 Application créée pour gérer votre chiffre d'affaires")
-
-# ==================== VÉRIFICATION MOT DE PASSE ====================
-
-if not verifier_mot_de_passe():
-    st.stop()
-
-# ==================== CHARGEMENT DES DONNÉES ====================
-
-if os.path.exists(fichier_excel):
-    df = charger_donnees(fichier_excel)
+def calculer_resume_mensuel(df):
+    """Calcule le résumé mensuel pour tous les exercices disponibles"""
     
-    if df is not None and not df.empty:
-        # Trouver la dernière date avec une valeur > 0
-        df_avec_valeur = df[df['montant'] > 0]
-        if not df_avec_valeur.empty:
-            derniere_date = df_avec_valeur['date'].max()
-        else:
-            derniere_date = df['date'].max()
-        
-        # Ajouter colonnes calculées
-        df['exercice'] = df['date'].apply(calculer_exercice)
-        df['annee'] = df['date'].dt.year
-        df['mois'] = df['date'].dt.month
-        df['jour_semaine'] = df['date'].dt.day_name()
-        
-        # ==================== PAGE ACCUEIL ====================
+    # Ajouter une colonne exercice et mois
+    df['exercice'] = df['date'].apply(calculer_exercice)
+    df['mois_num'] = df['date'].dt.month
+    df['annee'] = df['date'].dt.year
+    
+    # Mapper les numéros de mois aux noms
+    mois_noms = {
+        7: 'Juillet', 8: 'Août', 9: 'Septembre', 10: 'Octobre', 
+        11: 'Novembre', 12: 'Décembre', 1: 'Janvier', 2: 'Février', 
+        3: 'Mars', 4: 'Avril', 5: 'Mai', 6: 'Juin'
+    }
+    
+    # Grouper par exercice et mois
+    resume = df.groupby(['exercice', 'mois_num']).agg({
+        'montant': 'sum'
+    }).reset_index()
+    
+    resume['mois'] = resume['mois_num'].map(mois_noms)
+    
+    # Pivot pour avoir les exercices en colonnes
+    pivot = resume.pivot(index='mois_num', columns='exercice', values='montant').fillna(0)
+    
+    # Réordonner les mois (juillet à juin)
+    ordre_mois = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]
+    pivot = pivot.reindex(ordre_mois)
+    
+    # Ajouter la colonne mois
+    pivot.insert(0, 'Mois', [mois_noms[m] for m in ordre_mois])
+    
+    # Calculer les évolutions si on a au moins 2 exercices
+    if len(pivot.columns) >= 3:  # Mois + au moins 2 exercices
+        exercices = [col for col in pivot.columns if col != 'Mois']
+        if len(exercices) >= 2:
+            ex_actuel = exercices[-1]
+            ex_precedent = exercices[-2]
+            
+            pivot['Évol €'] = pivot[ex_actuel] - pivot[ex_precedent]
+            pivot['Évol %'] = ((pivot[ex_actuel] - pivot[ex_precedent]) / pivot[ex_precedent] * 100).round(1)
+            pivot['Évol %'] = pivot['Évol %'].replace([float('inf'), -float('inf')], 0)
+    
+    return pivot
 
-        if page == "🏠 Accueil":
-            # En-tête centré
+def calculer_ca_par_jour_semaine(df):
+    """Calcule le CA par jour de la semaine pour chaque exercice"""
+    
+    # Ajouter les colonnes nécessaires
+    df['exercice'] = df['date'].apply(calculer_exercice)
+    df['jour_semaine'] = df['date'].dt.dayofweek  # 0 = Lundi, 6 = Dimanche
+    
+    # Noms des jours en français
+    jours_fr = {0: 'Lundi', 1: 'Mardi', 2: 'Mercredi', 3: 'Jeudi', 
+                4: 'Vendredi', 5: 'Samedi', 6: 'Dimanche'}
+    
+    # Grouper par exercice et jour de la semaine
+    ca_par_jour = df.groupby(['exercice', 'jour_semaine']).agg({
+        'montant': 'sum',
+        'date': 'count'  # Nombre de jours travaillés
+    }).reset_index()
+    
+    ca_par_jour.columns = ['exercice', 'jour_semaine', 'ca_total', 'nb_jours']
+    ca_par_jour['ca_moyen'] = ca_par_jour['ca_total'] / ca_par_jour['nb_jours']
+    ca_par_jour['jour'] = ca_par_jour['jour_semaine'].map(jours_fr)
+    
+    # Pivot pour avoir les exercices en colonnes
+    pivot_total = ca_par_jour.pivot(index='jour_semaine', columns='exercice', values='ca_total').fillna(0)
+    pivot_nb = ca_par_jour.pivot(index='jour_semaine', columns='exercice', values='nb_jours').fillna(0)
+    pivot_moyen = ca_par_jour.pivot(index='jour_semaine', columns='exercice', values='ca_moyen').fillna(0)
+    
+    # Réordonner les jours (lundi à dimanche)
+    pivot_total = pivot_total.reindex([0, 1, 2, 3, 4, 5, 6])
+    pivot_nb = pivot_nb.reindex([0, 1, 2, 3, 4, 5, 6])
+    pivot_moyen = pivot_moyen.reindex([0, 1, 2, 3, 4, 5, 6])
+    
+    # Ajouter la colonne jour
+    pivot_total.insert(0, 'Jour', [jours_fr[i] for i in range(7)])
+    pivot_nb.insert(0, 'Jour', [jours_fr[i] for i in range(7)])
+    pivot_moyen.insert(0, 'Jour', [jours_fr[i] for i in range(7)])
+    
+    return pivot_total, pivot_nb, pivot_moyen
+
+# ==================== AFFICHAGE ====================
+
+if verifier_mot_de_passe():
+    
+    # ========== SIDEBAR ==========
+    with st.sidebar:
+        if os.path.exists("assets/logo.png"):
+            st.image("assets/logo.png", width=150)
+        
+        st.title("📊 Menu")
+        
+        st.markdown("---")
+        
+        fichier_excel = st.text_input(
+            "📁 Fichier Excel",
+            value="data/CA_Atelier_Vincent.xlsm",
+            help="Chemin vers votre fichier Excel"
+        )
+        
+        st.markdown("---")
+        
+        page = st.radio(
+            "Navigation",
+            ["🏠 Accueil", "📊 Suivi mensuel", "📈 Historique", "➕ Saisie", "⚙️ Données brutes"],
+            label_visibility="collapsed"
+        )
+        
+        st.markdown("---")
+        
+        if st.button("🔄 Recharger les données", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+        
+        st.markdown("---")
+        
+        with st.expander("ℹ️ Informations"):
             st.markdown("""
-            <h1 style='text-align: center;'>Tableau de Bord<br>L'Atelier de Vincent</h1>
-            """, unsafe_allow_html=True)
+            **L'Atelier de Vincent**
             
-            st.markdown("### 👋 Bonjour Vincent !")
+            Application de gestion du chiffre d'affaires
             
-            derniere_date_str = derniere_date.strftime("%d/%m/%Y")
-            st.markdown(f"### Voici où nous en sommes à la date du : **{derniere_date_str}**")
-            st.markdown("---")
-            
-            # ========== SECTION 1 : JOURNALIER ==========
-            st.subheader("📅 Comparaison Journalière")
-            
-            date_n = derniere_date
-            jour_semaine_n = date_n.strftime('%A')
-            
-            # Trouver le même jour de semaine l'année précédente (avec gestion 29 février)
-            try:
-                date_n_moins_1_approx = date_n.replace(year=date_n.year - 1)
-            except ValueError:
-                # Cas du 29 février en année non bissextile → utiliser 28 février
-                date_n_moins_1_approx = datetime(date_n.year - 1, 2, 28)
-            
-            # Chercher le même jour de semaine dans une fenêtre de +/- 3 jours
-            for delta in range(-3, 4):
-                date_candidate = date_n_moins_1_approx + timedelta(days=delta)
-                if date_candidate.strftime('%A') == jour_semaine_n:
-                    date_n_moins_1 = date_candidate
-                    break
-            
-            ca_jour_n = df[df['date'] == date_n]['montant'].sum()
-            ca_jour_n_moins_1 = df[df['date'] == date_n_moins_1]['montant'].sum()
-            
-            evolution_jour_euro = ca_jour_n - ca_jour_n_moins_1
-            evolution_jour_pct = (evolution_jour_euro / ca_jour_n_moins_1 * 100) if ca_jour_n_moins_1 != 0 else 0
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric(
-                   f"CA du {date_n_moins_1.strftime('%d/%m/%Y')}",
-   		   formater_euro(ca_jour_n_moins_1),
-                   help=f"{jour_semaine_n} {date_n_moins_1.strftime('%d/%m/%Y')}"
-               )
-
-
-            with col2:
-                st.metric(
-                    f"CA du **{derniere_date_str}**", 
-                    formater_euro(ca_jour_n),
-                    help=f"{jour_semaine_n} {date_n.strftime('%d/%m/%Y')}"
-                )
-            with col3:
-                st.metric("Évolution €", formater_euro(evolution_jour_euro))
-            with col4:
-                st.metric("Évolution %", f"{evolution_jour_pct:+.1f}%")
-            
-            st.markdown("---")
-            
-            # ========== SECTION 2 : MENSUEL ==========
-            st.subheader("📊 Comparaison Mensuelle")
-            
-            mois_actuel = date_n.month
-            annee_actuelle = date_n.year
-            jour_actuel = date_n.day
-            
-            # Cumul mois N
-            debut_mois_n = date_n.replace(day=1)
-            df_mois_n = df[(df['date'] >= debut_mois_n) & (df['date'] <= date_n)]
-            cumul_mois_n = df_mois_n['montant'].sum()
-            
-            nb_jours_ecoules = jour_actuel
-            
-            # Cumul mois N-1 : MÊME MOIS, année précédente
-            mois_n_moins_1 = mois_actuel
-            annee_n_moins_1 = annee_actuelle - 1
-            
-            debut_mois_n_moins_1 = datetime(annee_n_moins_1, mois_n_moins_1, 1)
-            
-            dernier_jour_mois_n_moins_1 = calendar.monthrange(annee_n_moins_1, mois_n_moins_1)[1]
-            jour_fin_n_moins_1 = min(nb_jours_ecoules, dernier_jour_mois_n_moins_1)
-            fin_mois_n_moins_1 = datetime(annee_n_moins_1, mois_n_moins_1, jour_fin_n_moins_1)
-            
-            df_mois_n_moins_1 = df[(df['date'] >= debut_mois_n_moins_1) & (df['date'] <= fin_mois_n_moins_1)]
-            cumul_mois_n_moins_1 = df_mois_n_moins_1['montant'].sum()
-            
-            evolution_mois_euro = cumul_mois_n - cumul_mois_n_moins_1
-            evolution_mois_pct = (evolution_mois_euro / cumul_mois_n_moins_1 * 100) if cumul_mois_n_moins_1 != 0 else 0
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric(
-                    "Cumul Mois N-1", 
-                    formater_euro(cumul_mois_n_moins_1),
-                    help=f"Du 1er au {jour_fin_n_moins_1} {calendar.month_name[mois_n_moins_1]} {annee_n_moins_1} ({jour_fin_n_moins_1} jours)"
-                )
-            with col2:
-                st.metric(
-                    "Cumul Mois", 
-                    formater_euro(cumul_mois_n),
-                    help=f"Du 1er au {jour_actuel} {date_n.strftime('%B %Y')} ({nb_jours_ecoules} jours)"
-                )
-            with col3:
-                st.metric("Évolution €", formater_euro(evolution_mois_euro))
-            with col4:
-                st.metric("Évolution %", f"{evolution_mois_pct:+.1f}%")
-            
-            # ========== MESSAGE MOTIVANT ==========
-            st.markdown("")
-            
-            # CA TOTAL du mois de l'année dernière (mois complet)
-            debut_mois_complet_n_moins_1 = datetime(annee_n_moins_1, mois_n_moins_1, 1)
-            dernier_jour_complet = calendar.monthrange(annee_n_moins_1, mois_n_moins_1)[1]
-            fin_mois_complet_n_moins_1 = datetime(annee_n_moins_1, mois_n_moins_1, dernier_jour_complet)
-            
-            df_mois_complet_n_moins_1 = df[(df['date'] >= debut_mois_complet_n_moins_1) & 
-                                            (df['date'] <= fin_mois_complet_n_moins_1)]
-            ca_total_mois_n_moins_1 = df_mois_complet_n_moins_1['montant'].sum()
-            
-            # Reste à faire
-            reste_a_faire = ca_total_mois_n_moins_1 - cumul_mois_n
-            
-            # Nom du mois en français
-            mois_fr_noms = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-                            'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-            nom_mois_n_moins_1 = mois_fr_noms[mois_n_moins_1 - 1]
-            
-            if reste_a_faire > 0:
-                st.info(
-                    f"🎯 **Objectif :** Pour atteindre le CA de **{nom_mois_n_moins_1} {annee_n_moins_1}** "
-                    f"({formater_euro(ca_total_mois_n_moins_1)}), il reste **{formater_euro(reste_a_faire)}** à faire."
-                )
-            else:
-                depassement = abs(reste_a_faire)
-                st.success(
-                    f"🎉 **Bravo !** Vous avez dépassé le CA de **{nom_mois_n_moins_1} {annee_n_moins_1}** "
-                    f"({formater_euro(ca_total_mois_n_moins_1)}) de **{formater_euro(depassement)}** !"
-                )
-            
-            st.markdown("---")
-
-            
-            # ========== SECTION 3 : ANNUEL ==========
-            st.subheader("📈 Comparaison Annuelle (Exercice)")
-            
-            exercice_actuel = calculer_exercice(date_n)
-            annee_debut_exercice = int(exercice_actuel.split('/')[0])
-            
-            debut_exercice_n = datetime(annee_debut_exercice, 7, 1)
-            df_exercice_n = df[(df['date'] >= debut_exercice_n) & (df['date'] <= date_n)]
-            cumul_exercice_n = df_exercice_n['montant'].sum()
-            
-            # Même période exercice précédent (utilise date_n_moins_1 du calcul journalier)
-            debut_exercice_n_moins_1 = datetime(annee_debut_exercice - 1, 7, 1)
-            df_exercice_n_moins_1 = df[(df['date'] >= debut_exercice_n_moins_1) & (df['date'] <= date_n_moins_1)]
-            cumul_exercice_n_moins_1 = df_exercice_n_moins_1['montant'].sum()
-            
-            nb_jours_exercice_n = (date_n - debut_exercice_n).days + 1
-            nb_jours_exercice_n_moins_1 = (date_n_moins_1 - debut_exercice_n_moins_1).days + 1
-            
-            evolution_exercice_euro = cumul_exercice_n - cumul_exercice_n_moins_1
-            evolution_exercice_pct = (evolution_exercice_euro / cumul_exercice_n_moins_1 * 100) if cumul_exercice_n_moins_1 != 0 else 0
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric(
-                    "Cumul Année N-1", 
-                    formater_euro(cumul_exercice_n_moins_1),
-                    help=f"Du 1er juillet {annee_debut_exercice - 1} au {date_n_moins_1.strftime('%d/%m/%Y')} ({nb_jours_exercice_n_moins_1} jours)"
-                )
-            with col2:
-                st.metric(
-                    "Cumul Année N", 
-                    formater_euro(cumul_exercice_n),
-                    help=f"Du 1er juillet {annee_debut_exercice} au {date_n.strftime('%d/%m/%Y')} ({nb_jours_exercice_n} jours)"
-                )
-            with col3:
-                st.metric("Évolution €", formater_euro(evolution_exercice_euro))
-            with col4:
-                st.metric("Évolution %", f"{evolution_exercice_pct:+.1f}%")
-            
-            st.markdown("---")
-            
-            
-           # ========== SECTION 4 : FORMULAIRE DE SAISIE ==========
-            st.subheader("➕ Saisir une nouvelle entrée")
-            
-            with st.form("formulaire_saisie_accueil"):
-                st.markdown("**📅 Date**")
-                col_jour, col_mois, col_annee = st.columns(3)
-                
-                # Date du jour par défaut
-                aujourd_hui = datetime.now()
-                
-                with col_jour:
-                    jour = st.selectbox(
-                        "Jour",
-                        options=list(range(1, 32)),
-                        index=aujourd_hui.day - 1,
-                        label_visibility="collapsed"
-                    )
-                
-                with col_mois:
-                    mois_fr = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-                               'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-                    mois = st.selectbox(
-                        "Mois",
-                        options=mois_fr,
-                        index=aujourd_hui.month - 1,
-                        label_visibility="collapsed"
-                    )
-                    mois_numero = mois_fr.index(mois) + 1
-                
-                with col_annee:
-                    annee = st.selectbox(
-                        "Année",
-                        options=list(range(2019, 2031)),
-                        index=list(range(2019, 2031)).index(aujourd_hui.year),
-                        label_visibility="collapsed"
-                    )
-                
-                # Construire la date
-                try:
-                    date_saisie = datetime(annee, mois_numero, jour)
-                except ValueError:
-                    # Si la date est invalide (ex: 31 février)
-                    st.error("⚠️ Date invalide")
-                    date_saisie = aujourd_hui
-                
-                st.markdown("**💰 Montant**")
-                montant_saisie = st.number_input(
-                    "Montant (€)",
-                    min_value=0.0,
-                    value=0.0,
-                    step=0.01,
-                    format="%.2f",
-                    label_visibility="collapsed"
-                )
-                
-                st.markdown("**👥 Nombre de collaborateurs**")
-                nb_collaborateurs = st.selectbox(
-                    "Nombre de collaborateurs",
-                    options=[1, 2, 3, 4],
-                    index=1,  # Par défaut : 2 personnes (Patron + CDI)
-                    label_visibility="collapsed",
-                    help="1 = Patron seul | 2 = Patron + CDI | 3 = Patron + CDI + Stagiaire | 4 = Patron + CDI + 2 Stagiaires"
-                )
-                
-                submit = st.form_submit_button("✅ Enregistrer", use_container_width=True)
-                
-                if submit:
-                    if montant_saisie >= 0:
-                        succes, message = enregistrer_transaction(fichier_excel, date_saisie, montant_saisie, nb_collaborateurs)
-                        
-                        if succes:
-                            st.success(message)
-                            st.balloons()
-                            st.cache_data.clear()
-                            st.rerun()
-                        else:
-                            st.error(message)
-                            
-            st.markdown("---")
-
-
-            # ========== SECTION 5 : FEUILLE DU MOIS ==========
-            st.subheader(f"📋 Détail du mois en cours : {date_n.strftime('%B %Y').capitalize()}")
-            
-            df_mois_actuel = df[(df['date'].dt.month == mois_actuel) & (df['date'].dt.year == annee_actuelle)]
-            
-            if len(df_mois_actuel) > 0:
-                df_affichage = df_mois_actuel[['date', 'montant']].copy()
-                df_affichage['date'] = df_affichage['date'].dt.strftime('%d/%m/%Y')
-                df_affichage['montant'] = df_affichage['montant'].apply(formater_euro)
-                df_affichage = df_affichage.sort_values('date', ascending=False)
-                df_affichage.columns = ['Date', 'Montant']
-                
-                st.dataframe(df_affichage, hide_index=True, use_container_width=True)
-                
-                total_mois = df_mois_actuel['montant'].sum()
-                st.markdown(f"**Total du mois : {formater_euro(total_mois)}**")
-            else:
-                st.info("Aucune donnée pour ce mois")
-
-        # ==================== AUTRES PAGES ====================
-        
-        elif page == "📊 Suivi":
-            st.title("📊 Suivi Mensuel par Exercice")
-        
-            # ========== SÉLECTION DE L'EXERCICE ==========
-            exercices_disponibles = []
-            annees = sorted(df['date'].dt.year.unique())
-        
-            for annee in annees:
-                exercices_disponibles.append(f"{annee}/{annee + 1}")
-        
-            # Retirer les doublons et trier
-            exercices_disponibles = sorted(list(set(exercices_disponibles)))
-        
-            # Exercice actuel par défaut
-            date_actuelle = datetime.now()
-            exercice_actuel = calculer_exercice(date_actuelle)
-        
-            if exercice_actuel in exercices_disponibles:
-                index_defaut = exercices_disponibles.index(exercice_actuel)
-            else:
-                index_defaut = len(exercices_disponibles) - 1
-        
-            col1, col2 = st.columns([2, 3])
-        
-            with col1:
-                exercice_selectionne = st.selectbox(
-                    "📅 Choisir l'exercice",
-                    options=exercices_disponibles,
-                    index=index_defaut
-                )
-        
-            with col2:
-                mois_liste = ['Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-                              'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
-            
-                # Mois actuel par défaut
-                mois_actuel_index = (date_actuelle.month - 7) % 12
-            
-                mois_selectionne = st.selectbox(
-                    "📆 Choisir le mois",
-                    options=mois_liste,
-                    index=mois_actuel_index
-                )
-        
-            st.markdown("---")
-        
-            # ========== CALCUL DES DATES ==========
-            annee_debut_exercice = int(exercice_selectionne.split('/')[0])
-            
-            # Mapper le nom du mois à son vrai numéro (1-12)
-            mois_mapping = {
-                'Juillet': 7, 'Août': 8, 'Septembre': 9, 'Octobre': 10, 'Novembre': 11, 'Décembre': 12,
-                'Janvier': 1, 'Février': 2, 'Mars': 3, 'Avril': 4, 'Mai': 5, 'Juin': 6
-            }
-            mois_numero = mois_mapping[mois_selectionne]
-        
-            # Ajuster l'année du mois selon l'exercice
-            if mois_numero >= 7:  # Juillet à Décembre
-                annee_mois_n = annee_debut_exercice
-            else:  # Janvier à Juin
-                annee_mois_n = annee_debut_exercice + 1
-        
-            # Calculer l'année N-1
-            annee_mois_n_moins_1 = annee_mois_n - 1
-        
-            # Nombre de jours dans le mois
-            nb_jours_mois = calendar.monthrange(annee_mois_n, mois_numero)[1]
-        
-            # ========== CRÉATION DU TABLEAU ==========
-            st.subheader(f"📋 {mois_selectionne} {annee_mois_n} vs {mois_selectionne} {annee_mois_n_moins_1}")
-            
-            # Bouton Export PDF (sera activé après calcul des données)
-            placeholder_pdf_button = st.empty()
-        
-            # Créer les données du tableau
-            donnees_tableau = []
-        
-            for jour in range(1, nb_jours_mois + 1):
-                date_n = datetime(annee_mois_n, mois_numero, jour)
-                jour_semaine = date_n.weekday()  # 0 = Lundi, 6 = Dimanche
-            
-                # Trouver la date N-1 correspondante (même jour de la semaine)
-                # Chercher le même jour de la semaine dans l'année N-1
-                date_reference_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, jour)
-                jours_diff = (jour_semaine - date_reference_n_moins_1.weekday()) % 7
-            
-                if jours_diff <= 3:
-                    date_n_moins_1 = date_reference_n_moins_1 + timedelta(days=jours_diff)
-                else:
-                    date_n_moins_1 = date_reference_n_moins_1 - timedelta(days=7 - jours_diff)
-            
-                # Récupérer les montants et le nombre de collaborateurs
-                data_n = df[df['date'] == date_n]
-                montant_n = data_n['montant'].sum()
-                nb_collab_n = data_n['nb_collaborateurs'].max() if not data_n.empty else 0
-                
-                data_n_moins_1 = df[df['date'] == date_n_moins_1]
-                montant_n_moins_1 = data_n_moins_1['montant'].sum()
-                nb_collab_n_moins_1 = data_n_moins_1['nb_collaborateurs'].max() if not data_n_moins_1.empty else 0
-            
-                # Noms des jours en français
-                jours_fr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-                nom_jour = jours_fr[jour_semaine]
-            
-                donnees_tableau.append({
-                    'Jour': nom_jour,
-                    'Date N-1': date_n_moins_1.strftime('%d/%m/%Y'),
-                    'Date N': date_n.strftime('%d/%m/%Y'),
-                    'Montant N-1': formater_euro(montant_n_moins_1) if montant_n_moins_1 > 0 else '-',
-                    'Nb Collab N-1': str(nb_collab_n_moins_1) if montant_n_moins_1 > 0 else '-',
-                    'Montant N': formater_euro(montant_n) if montant_n > 0 else '-',
-                    'Nb Collab N': str(nb_collab_n) if montant_n > 0 else '-'
-                })
-        
-            # Créer le DataFrame
-            df_tableau = pd.DataFrame(donnees_tableau)
-            
-            # Calculer les totaux pour le PDF (avant l'affichage)
-            debut_mois_n = datetime(annee_mois_n, mois_numero, 1)
-            fin_mois_n = datetime(annee_mois_n, mois_numero, nb_jours_mois)
-            df_mois_n = df[(df['date'] >= debut_mois_n) & (df['date'] <= fin_mois_n)]
-            total_n = df_mois_n['montant'].sum()
-            
-            debut_mois_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, 1)
-            fin_mois_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, nb_jours_mois)
-            df_mois_n_moins_1 = df[(df['date'] >= debut_mois_n_moins_1) & (df['date'] <= fin_mois_n_moins_1)]
-            total_n_moins_1 = df_mois_n_moins_1['montant'].sum()
-            
-            evolution_euro = total_n - total_n_moins_1
-            evolution_pct = (evolution_euro / total_n_moins_1 * 100) if total_n_moins_1 != 0 else 0
-            
-            # Bouton Export PDF avec le placeholder
-            with placeholder_pdf_button:
-                pdf_buffer = generer_pdf_suivi(
-                    donnees_tableau, 
-                    mois_selectionne, 
-                    annee_mois_n, 
-                    annee_mois_n_moins_1,
-                    total_n,
-                    total_n_moins_1,
-                    evolution_euro,
-                    evolution_pct
-                )
-                
-                st.download_button(
-                    label="📄 Exporter en PDF",
-                    data=pdf_buffer,
-                    file_name=f"Suivi_{mois_selectionne}_{annee_mois_n}.pdf",
-                    mime="application/pdf",
-                    use_container_width=False
-                )
-            
-            st.markdown("---")
-        
-            # Afficher le tableau
-            st.dataframe(
-                df_tableau,
-                hide_index=True,
-                use_container_width=True,
-                height=600,
-                column_config={
-                    "Jour": st.column_config.TextColumn("Jour", width="small"),
-                    "Date N-1": st.column_config.TextColumn("Date N-1", width="medium"),
-                    "Date N": st.column_config.TextColumn("Date N", width="medium"),
-                    "Montant N-1": st.column_config.TextColumn("Montant N-1", width="medium"),
-                    "Nb Collab N-1": st.column_config.TextColumn("Nb Collab N-1", width="small"),
-                    "Montant N": st.column_config.TextColumn("Montant N", width="medium"),
-                    "Nb Collab N": st.column_config.TextColumn("Nb Collab N", width="small")
-                }
-            )
-        
-            # ========== TOTAUX ==========
-            st.markdown("---")
-        
-            col1, col2, col3, col4 = st.columns(4)
-        
-            with col1:
-                st.metric(
-                    f"Total {mois_selectionne} {annee_mois_n_moins_1}",
-                    formater_euro(total_n_moins_1)
-                )
-        
-            with col2:
-                st.metric(
-                    f"Total {mois_selectionne} {annee_mois_n}",
-                    formater_euro(total_n)
-                )
-        
-            with col3:
-                st.metric("Évolution €", formater_euro(evolution_euro))
-        
-            with col4:
-                st.metric("Évolution %", f"{evolution_pct:+.1f}%")
-        
-        elif page == "📈 Historique":
-            st.title("📈 Historique")
-            st.info("Page Historique en construction")
-        
-        elif page == "➕ Saisie":
-            st.title("➕ Saisie de données")
-            st.info("Utilisez le formulaire sur la page d'accueil")
-        
-        elif page == "⚙️ Données brutes":
-            st.title("⚙️ Données brutes")
-            st.dataframe(df, use_container_width=True)
+            © 2024 Vincent
+            """)
     
+    # ========== CHARGEMENT DES DONNÉES ==========
+    if os.path.exists(fichier_excel):
+        df = charger_donnees(fichier_excel)
+        
+        if df is not None:
+            
+            # ========== PAGE ACCUEIL ==========
+            if page == "🏠 Accueil":
+                st.title("🏠 L'Atelier de Vincent")
+                
+                col1, col2 = st.columns([2, 1])
+                
+                with col1:
+                    st.subheader("Bienvenue dans votre espace de gestion")
+                    st.markdown("""
+                    Cette application vous permet de :
+                    - 📊 Suivre votre chiffre d'affaires mensuel
+                    - 📈 Analyser l'évolution historique
+                    - ➕ Saisir de nouvelles données
+                    - 📄 Exporter vos rapports en PDF
+                    """)
+                
+                with col2:
+                    if os.path.exists("assets/logo.png"):
+                        st.image("assets/logo.png", width=200)
+                
+                st.markdown("---")
+                
+                # ========== INDICATEURS CLÉS ==========
+                st.subheader("📊 Indicateurs clés")
+                
+                # Calculer l'exercice actuel
+                date_actuelle = datetime.now()
+                exercice_actuel = calculer_exercice(date_actuelle)
+                
+                # Filtrer les données de l'exercice actuel
+                df['exercice'] = df['date'].apply(calculer_exercice)
+                df_exercice_actuel = df[df['exercice'] == exercice_actuel]
+                
+                # Calculer les indicateurs
+                ca_total = df_exercice_actuel['montant'].sum()
+                nb_jours_travailles = len(df_exercice_actuel)
+                ca_moyen_jour = ca_total / nb_jours_travailles if nb_jours_travailles > 0 else 0
+                
+                # Trouver le meilleur mois
+                df_exercice_actuel['mois'] = df_exercice_actuel['date'].dt.month
+                ca_par_mois = df_exercice_actuel.groupby('mois')['montant'].sum()
+                meilleur_mois_num = ca_par_mois.idxmax() if not ca_par_mois.empty else 0
+                
+                mois_noms = {
+                    7: 'Juillet', 8: 'Août', 9: 'Septembre', 10: 'Octobre',
+                    11: 'Novembre', 12: 'Décembre', 1: 'Janvier', 2: 'Février',
+                    3: 'Mars', 4: 'Avril', 5: 'Mai', 6: 'Juin'
+                }
+                meilleur_mois = mois_noms.get(meilleur_mois_num, 'N/A')
+                
+                # Calculer la moyenne mensuelle (sur 12 mois)
+                ca_moyen_mois = ca_total / 12
+                
+                # Afficher les indicateurs
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("CA Total", formater_euro(ca_total))
+                
+                with col2:
+                    st.metric("Meilleur mois", meilleur_mois)
+                
+                with col3:
+                    st.metric("Moyenne/mois", formater_euro(ca_moyen_mois))
+                
+                with col4:
+                    st.metric("CA moyen/jour", formater_euro(ca_moyen_jour))
+                
+                st.markdown("---")
+                
+                # ========== FORMULAIRE DE SAISIE ==========
+                st.subheader("➕ Saisie rapide")
+                
+                with st.form("saisie_rapide"):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        date_saisie = st.date_input("Date", value=datetime.now())
+                    
+                    with col2:
+                        montant_saisie = st.number_input("Montant (€)", min_value=0.0, step=0.01)
+                    
+                    with col3:
+                        nb_collab_saisie = st.number_input("Nb collaborateurs", min_value=0, step=1, value=2)
+                    
+                    submitted = st.form_submit_button("💾 Enregistrer", use_container_width=True)
+                    
+                    if submitted:
+                        st.success(f"✅ Données enregistrées : {formater_euro(montant_saisie)} le {date_saisie}")
+                        st.info("💡 Note : Pour l'instant, cette fonctionnalité est en mode démo. Les données ne sont pas encore sauvegardées dans le fichier Excel.")
+            
+            # ========== PAGE SUIVI MENSUEL ==========
+            elif page == "📊 Suivi mensuel":
+                st.title("📊 Suivi mensuel")
+                
+                # Calculer les exercices disponibles
+                df['exercice'] = df['date'].apply(calculer_exercice)
+                exercices_disponibles = sorted(df['exercice'].unique())
+                
+                # Exercice actuel par défaut
+                date_actuelle = datetime.now()
+                exercice_actuel = calculer_exercice(date_actuelle)
+                
+                if exercice_actuel in exercices_disponibles:
+                    index_defaut = exercices_disponibles.index(exercice_actuel)
+                else:
+                    index_defaut = len(exercices_disponibles) - 1
+                
+                col1, col2 = st.columns([2, 3])
+                
+                with col1:
+                    exercice_selectionne = st.selectbox(
+                        "📅 Choisir l'exercice",
+                        options=exercices_disponibles,
+                        index=index_defaut
+                    )
+                
+                with col2:
+                    mois_liste = ['Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+                                  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
+                    
+                    # Mois actuel par défaut
+                    mois_actuel_index = (date_actuelle.month - 7) % 12
+                    
+                    mois_selectionne = st.selectbox(
+                        "📆 Choisir le mois",
+                        options=mois_liste,
+                        index=mois_actuel_index
+                    )
+                
+                st.markdown("---")
+                
+                # ========== CALCUL DES DATES ==========
+                annee_debut_exercice = int(exercice_selectionne.split('/')[0])
+                
+                mois_mapping = {
+                    'Juillet': 7, 'Août': 8, 'Septembre': 9, 'Octobre': 10, 'Novembre': 11, 'Décembre': 12,
+                    'Janvier': 1, 'Février': 2, 'Mars': 3, 'Avril': 4, 'Mai': 5, 'Juin': 6
+                }
+                mois_numero = mois_mapping[mois_selectionne]
+                
+                if mois_numero >= 7:
+                    annee_mois_n = annee_debut_exercice
+                else:
+                    annee_mois_n = annee_debut_exercice + 1
+                
+                annee_mois_n_moins_1 = annee_mois_n - 1
+                nb_jours_mois = calendar.monthrange(annee_mois_n, mois_numero)[1]
+                
+                # ========== CRÉATION DU TABLEAU ==========
+                st.subheader(f"📋 {mois_selectionne} {annee_mois_n} vs {mois_selectionne} {annee_mois_n_moins_1}")
+                
+                placeholder_pdf_button = st.empty()
+                
+                donnees_tableau = []
+                
+                for jour in range(1, nb_jours_mois + 1):
+                    date_n = datetime(annee_mois_n, mois_numero, jour)
+                    jour_semaine = date_n.weekday()
+                    
+                    date_reference_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, jour)
+                    jours_diff = (jour_semaine - date_reference_n_moins_1.weekday()) % 7
+                    
+                    if jours_diff <= 3:
+                        date_n_moins_1 = date_reference_n_moins_1 + timedelta(days=jours_diff)
+                    else:
+                        date_n_moins_1 = date_reference_n_moins_1 - timedelta(days=7 - jours_diff)
+                    
+                    data_n = df[df['date'] == date_n]
+                    montant_n = data_n['montant'].sum()
+                    nb_collab_n = data_n['nb_collaborateurs'].max() if not data_n.empty else 0
+                    
+                    data_n_moins_1 = df[df['date'] == date_n_moins_1]
+                    montant_n_moins_1 = data_n_moins_1['montant'].sum()
+                    nb_collab_n_moins_1 = data_n_moins_1['nb_collaborateurs'].max() if not data_n_moins_1.empty else 0
+                    
+                    jours_fr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+                    nom_jour = jours_fr[jour_semaine]
+                    
+                    donnees_tableau.append({
+                        'Jour': nom_jour,
+                        'Date N-1': date_n_moins_1.strftime('%d/%m/%Y'),
+                        'Date N': date_n.strftime('%d/%m/%Y'),
+                        'Montant N-1': formater_euro(montant_n_moins_1) if montant_n_moins_1 > 0 else '-',
+                        'Nb Collab N-1': str(nb_collab_n_moins_1) if montant_n_moins_1 > 0 else '-',
+                        'Montant N': formater_euro(montant_n) if montant_n > 0 else '-',
+                        'Nb Collab N': str(nb_collab_n) if montant_n > 0 else '-'
+                    })
+                
+                df_tableau = pd.DataFrame(donnees_tableau)
+                
+                # Calculer les totaux
+                debut_mois_n = datetime(annee_mois_n, mois_numero, 1)
+                fin_mois_n = datetime(annee_mois_n, mois_numero, nb_jours_mois)
+                df_mois_n = df[(df['date'] >= debut_mois_n) & (df['date'] <= fin_mois_n)]
+                total_n = df_mois_n['montant'].sum()
+                
+                debut_mois_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, 1)
+                fin_mois_n_moins_1 = datetime(annee_mois_n_moins_1, mois_numero, nb_jours_mois)
+                df_mois_n_moins_1 = df[(df['date'] >= debut_mois_n_moins_1) & (df['date'] <= fin_mois_n_moins_1)]
+                total_n_moins_1 = df_mois_n_moins_1['montant'].sum()
+                
+                evolution_euro = total_n - total_n_moins_1
+                evolution_pct = (evolution_euro / total_n_moins_1 * 100) if total_n_moins_1 != 0 else 0
+                
+                # Bouton Export PDF
+                with placeholder_pdf_button:
+                    pdf_buffer = generer_pdf_suivi(
+                        donnees_tableau, 
+                        mois_selectionne, 
+                        annee_mois_n, 
+                        annee_mois_n_moins_1,
+                        total_n,
+                        total_n_moins_1,
+                        evolution_euro,
+                        evolution_pct
+                    )
+                    
+                    st.download_button(
+                        label="📄 Exporter en PDF",
+                        data=pdf_buffer,
+                        file_name=f"Suivi_{mois_selectionne}_{annee_mois_n}.pdf",
+                        mime="application/pdf",
+                        use_container_width=False
+                    )
+                
+                st.markdown("---")
+                
+                # Afficher le tableau
+                st.dataframe(
+                    df_tableau,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=600,
+                    column_config={
+                        "Jour": st.column_config.TextColumn("Jour", width="small"),
+                        "Date N-1": st.column_config.TextColumn("Date N-1", width="medium"),
+                        "Date N": st.column_config.TextColumn("Date N", width="medium"),
+                        "Montant N-1": st.column_config.TextColumn("Montant N-1", width="medium"),
+                        "Nb Collab N-1": st.column_config.TextColumn("Nb Collab N-1", width="small"),
+                        "Montant N": st.column_config.TextColumn("Montant N", width="medium"),
+                        "Nb Collab N": st.column_config.TextColumn("Nb Collab N", width="small")
+                    }
+                )
+                
+                # ========== TOTAUX ==========
+                st.markdown("---")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric(
+                        f"Total {mois_selectionne} {annee_mois_n_moins_1}",
+                        formater_euro(total_n_moins_1)
+                    )
+                
+                with col2:
+                    st.metric(
+                        f"Total {mois_selectionne} {annee_mois_n}",
+                        formater_euro(total_n)
+                    )
+                
+                with col3:
+                    st.metric("Évolution €", formater_euro(evolution_euro))
+                
+                with col4:
+                    st.metric("Évolution %", f"{evolution_pct:+.1f}%")
+                
+                # ========== RÉSUMÉ MENSUEL ==========
+                st.markdown("---")
+                st.subheader("📋 Résumé mensuel")
+                
+                resume_df = calculer_resume_mensuel(df)
+                
+                # Préparer les données pour le graphique
+                # On prend les 2 derniers exercices s'ils existent
+                exercices_cols = [col for col in resume_df.columns if col not in ['Mois', 'Évol €', 'Évol %']]
+                
+                if len(exercices_cols) >= 2:
+                    ex_n_moins_1 = exercices_cols[-2]
+                    ex_n = exercices_cols[-1]
+                    
+                    # Créer deux colonnes : tableau et graphique
+                    col_tableau, col_graphique = st.columns([3, 2])
+                    
+                    with col_tableau:
+                        # Formater le tableau pour l'affichage
+                        resume_display = resume_df.copy()
+                        
+                        for col in resume_display.columns:
+                            if col not in ['Mois', 'Évol %']:
+                                resume_display[col] = resume_display[col].apply(lambda x: formater_euro(x) if isinstance(x, (int, float)) else x)
+                            elif col == 'Évol %':
+                                resume_display[col] = resume_display[col].apply(lambda x: f"{x:+.1f}%" if isinstance(x, (int, float)) else x)
+                        
+                        st.dataframe(
+                            resume_display,
+                            hide_index=True,
+                            use_container_width=True,
+                            height=500
+                        )
+                    
+                    with col_graphique:
+                        # Créer le graphique en barres verticales
+                        fig = go.Figure()
+                        
+                        fig.add_trace(go.Bar(
+                            name=ex_n_moins_1,
+                            x=resume_df['Mois'],
+                            y=resume_df[ex_n_moins_1],
+                            marker_color='#6C757D'
+                        ))
+                        
+                        fig.add_trace(go.Bar(
+                            name=ex_n,
+                            x=resume_df['Mois'],
+                            y=resume_df[ex_n],
+                            marker_color='#A89332'
+                        ))
+                        
+                        fig.update_layout(
+                            title=f"Comparaison {ex_n_minus_1} vs {ex_n}",
+                            xaxis_title="Mois",
+                            yaxis_title="Chiffre d'affaires (€)",
+                            barmode='group',
+                            height=500,
+                            hovermode='x unified'
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.dataframe(resume_df, hide_index=True, use_container_width=True)
+            
+            # ========== PAGE HISTORIQUE ==========
+            elif page == "📈 Historique":
+                st.title("📈 Historique")
+                
+                # ========== ÉVOLUTION HISTORIQUE DU CA ==========
+                st.subheader("📊 Évolution historique du CA")
+                
+                # Calculer le CA par mois pour tous les exercices
+                df['exercice'] = df['date'].apply(calculer_exercice)
+                df['annee_mois'] = df['date'].dt.to_period('M')
+                
+                ca_mensuel = df.groupby('annee_mois')['montant'].sum().reset_index()
+                ca_mensuel['annee_mois'] = ca_mensuel['annee_mois'].dt.to_timestamp()
+                
+                # Créer le graphique d'évolution
+                fig_evolution = px.line(
+                    ca_mensuel,
+                    x='annee_mois',
+                    y='montant',
+                    title="Évolution du CA mensuel",
+                    labels={'annee_mois': 'Mois', 'montant': 'CA (€)'},
+                    markers=True
+                )
+                
+                fig_evolution.update_traces(line_color='#A89332', marker=dict(size=8))
+                fig_evolution.update_layout(
+                    xaxis_title="Mois",
+                    yaxis_title="Chiffre d'affaires (€)",
+                    hovermode='x unified',
+                    height=500
+                )
+                
+                st.plotly_chart(fig_evolution, use_container_width=True)
+                
+                # Tableau récapitulatif
+                st.markdown("---")
+                
+                resume_mensuel = calculer_resume_mensuel(df)
+                
+                # Formater pour l'affichage
+                resume_display = resume_mensuel.copy()
+                for col in resume_display.columns:
+                    if col not in ['Mois', 'Évol %']:
+                        resume_display[col] = resume_display[col].apply(lambda x: formater_euro(x) if isinstance(x, (int, float)) else x)
+                    elif col == 'Évol %':
+                        resume_display[col] = resume_display[col].apply(lambda x: f"{x:+.1f}%" if isinstance(x, (int, float)) else x)
+                
+                st.dataframe(resume_display, hide_index=True, use_container_width=True, height=500)
+                
+                # ========== CA PAR JOUR DE LA SEMAINE ==========
+                st.markdown("---")
+                st.subheader("📅 CA par jour de la semaine")
+                
+                ca_total_jour, nb_jours_travailles, ca_moyen_jour = calculer_ca_par_jour_semaine(df)
+                
+                # Créer des onglets pour les différentes vues
+                tab1, tab2, tab3 = st.tabs(["CA Total", "Nb jours travaillés", "CA Moyen/jour"])
+                
+                with tab1:
+                    st.markdown("#### CA Total par jour de la semaine")
+                    
+                    # Formater pour l'affichage
+                    ca_total_display = ca_total_jour.copy()
+                    for col in ca_total_display.columns:
+                        if col != 'Jour':
+                            ca_total_display[col] = ca_total_display[col].apply(lambda x: formater_euro(x))
+                    
+                    st.dataframe(ca_total_display, hide_index=True, use_container_width=True)
+                
+                with tab2:
+                    st.markdown("#### Nombre de jours travaillés")
+                    st.dataframe(nb_jours_travailles, hide_index=True, use_container_width=True)
+                
+                with tab3:
+                    st.markdown("#### CA Moyen par jour")
+                    
+                    # Formater pour l'affichage
+                    ca_moyen_display = ca_moyen_jour.copy()
+                    for col in ca_moyen_display.columns:
+                        if col != 'Jour':
+                            ca_moyen_display[col] = ca_moyen_display[col].apply(lambda x: formater_euro(x))
+                    
+                    st.dataframe(ca_moyen_display, hide_index=True, use_container_width=True)
+            
+            elif page == "➕ Saisie":
+                st.title("➕ Saisie de données")
+                st.info("Utilisez le formulaire sur la page d'accueil")
+            
+            elif page == "⚙️ Données brutes":
+                st.title("⚙️ Données brutes")
+                st.dataframe(df, use_container_width=True)
+        
+        else:
+            st.error("❌ Impossible de charger les données du fichier Excel")
     else:
-        st.error("❌ Impossible de charger les données du fichier Excel")
-else:
-    st.error(f"❌ Le fichier '{fichier_excel}' n'existe pas. Vérifiez le chemin dans la sidebar.")
+        st.error(f"❌ Le fichier '{fichier_excel}' n'existe pas. Vérifiez le chemin dans la sidebar.")
