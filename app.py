@@ -35,19 +35,22 @@ except locale.Error:
 
 st.set_page_config(
     page_title="L'Atelier de Vincent",
-    page_icon="📊",
+    page_icon="assets/logo.png",  # Utilise votre logo comme favicon
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Forcer le nom de l'application pour Android (PWA)
+# Configuration PWA pour utiliser votre logo sur mobile
 st.markdown("""
     <head>
         <meta name="application-name" content="L'Atelier de Vincent">
         <meta name="apple-mobile-web-app-title" content="Atelier Vincent">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="mobile-web-app-capable" content="yes">
-        <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkwnQXRlbGllciBkZSBWaW5jZW50IiwKICAic2hvcnRfbmFtZSI6ICJBdGVsaWVyIFZpbmNlbnQiLAogICJkZXNjcmlwdGlvbiI6ICJHZXN0aW9uIENBIHBvdXIgTCdBdGVsaWVyIGRlIFZpbmNlbnQiLAogICJzdGFydF91cmwiOiAiLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiNmZjRiNGIiCn0=">
+        <meta name="theme-color" content="#A89332">
+        <link rel="apple-touch-icon" href="assets/logo.png">
+        <link rel="icon" type="image/png" sizes="192x192" href="assets/logo.png">
+        <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkwnQXRlbGllciBkZSBWaW5jZW50IiwKICAic2hvcnRfbmFtZSI6ICJBdGVsaWVyIFZpbmNlbnQiLAogICJkZXNjcmlwdGlvbiI6ICJHZXN0aW9uIENBIHBvdXIgTCdBdGVsaWVyIGRlIFZpbmNlbnQiLAogICJzdGFydF91cmwiOiAiLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI0Y1RjVGMCIsCiAgInRoZW1lX2NvbG9yIjogIiNBODkzMzIiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJhc3NldHMvbG9nby5wbmciLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIKICAgIH0KICBdCn0=">
     </head>
 """, unsafe_allow_html=True)
 
