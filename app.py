@@ -565,46 +565,23 @@ if os.path.exists(fichier_excel):
             with col_titre:
                 st.subheader("📊 Comparaison Mensuelle")
             
-            with col_jauge:
-                # Créer une jauge horizontale avec Plotly
-                fig_jauge_mois = {
-                    "data": [
-                        {
-                            "type": "indicator",
-                            "mode": "gauge+number",
-                            "value": pourcentage_objectif,
-                            "number": {"suffix": "%", "font": {"size": 20, "color": "#A89332"}},
-                            "gauge": {
-                                "axis": {
-                                    "range": [0, 120],
-                                    "tickwidth": 1,
-                                    "tickcolor": "lightgray",
-                                    "ticksuffix": "%"
-                                },
-                                "bar": {"color": "#A89332", "thickness": 0.8},
-                                "bgcolor": "white",
-                                "borderwidth": 1,
-                                "bordercolor": "gray",
-                                "steps": [
-                                    {"range": [0, 90], "color": "#FFE5E5"},
-                                    {"range": [90, 100], "color": "#FFF5E5"},
-                                    {"range": [100, 120], "color": "#E5F5E5"}
-                                ],
-                                "threshold": {
-                                    "line": {"color": "green", "width": 3},
-                                    "thickness": 0.8,
-                                    "value": 100
-                                }
-                            },
-                            "domain": {"x": [0, 1], "y": [0.2, 0.8]}
-                        }
-                    ],
-                    "layout": {
-                        "margin": {"t": 10, "b": 10, "l": 20, "r": 20},
-                        "height": 120,
-                        "font": {"family": "Arial, sans-serif", "size": 11},
-                        "annotations": [
-                            {
+with col_jauge:
+    # Barre de progression simple
+    st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}** (Mois 2024/2025 +4%)")
+    
+    # Calcul du pourcentage
+    progress_value = min(pourcentage_objectif / 100, 1.0)  # Entre 0 et 1
+    
+    # Afficher la barre de progression
+    st.progress(progress_value)
+    
+    # Affichage des détails
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.metric("Réalisé", formater_euro(cumul_mois_n))
+    with col_b:
+        st.metric("Progression", f"{pourcentage_objectif:.1f}%")
+
                                 "text": f"<b>Objectif mois :</b> {formater_euro(objectif_mois)}<br><span style='font-size:0.85em'>Réalisé : {formater_euro(cumul_mois_n)} / {formater_euro(objectif_proratise)} (proratisé)</span>",
                                 "x": 0.5,
                                 "y": 0,
