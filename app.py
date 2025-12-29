@@ -582,19 +582,7 @@ with col_jauge:
     with col_b:
         st.metric("Progression", f"{pourcentage_objectif:.1f}%")
 
-                                "text": f"<b>Objectif mois :</b> {formater_euro(objectif_mois)}<br><span style='font-size:0.85em'>Réalisé : {formater_euro(cumul_mois_n)} / {formater_euro(objectif_proratise)} (proratisé)</span>",
-                                "x": 0.5,
-                                "y": 0,
-                                "xanchor": "center",
-                                "yanchor": "top",
-                                "showarrow": False,
-                                "font": {"size": 11}
-                            }
-                        ]
-                    }
-                }
-                
-                st.plotly_chart(fig_jauge_mois, use_container_width=True, config={'displayModeBar': False})
+                               
             
             evolution_mois_euro = cumul_mois_n - cumul_mois_n_moins_1
             evolution_mois_pct = (evolution_mois_euro / cumul_mois_n_moins_1 * 100) if cumul_mois_n_moins_1 != 0 else 0
