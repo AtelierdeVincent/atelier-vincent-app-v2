@@ -831,19 +831,13 @@ if os.path.exists(fichier_excel):
         elif page == "📈 Historique":
             st.title("📈 Historique par Exercice")
             
-            # ========== CALCUL DES STATISTIQUES PAR EXERCICE ==========
-            
-            # Ajouter la colonne exercice et jour de la semaine si pas déjà fait
-            if 'exercice' not in df.columns:
-                df['exercice'] = df['date'].apply(calculer_exercice)
-            if 'jour_semaine' not in df.columns:
-                df['jour_semaine'] = df['date'].dt.day_name()
-                # Traduire en français
-                jours_en_fr = {
-                    'Monday': 'Lundi', 'Tuesday': 'Mardi', 'Wednesday': 'Mercredi',
-                    'Thursday': 'Jeudi', 'Friday': 'Vendredi', 'Saturday': 'Samedi', 'Sunday': 'Dimanche'
-                }
-                df['jour_semaine'] = df['jour_semaine'].map(jours_en_fr)
+            # ========== MAPPING DES JOURS EN FRANÇAIS ==========
+            # La colonne jour_semaine existe déjà en anglais, on la mappe en français
+            jours_en_fr = {
+                'Monday': 'Lundi', 'Tuesday': 'Mardi', 'Wednesday': 'Mercredi',
+                'Thursday': 'Jeudi', 'Friday': 'Vendredi', 'Saturday': 'Samedi', 'Sunday': 'Dimanche'
+            }
+            df['jour_semaine_fr'] = df['jour_semaine'].map(jours_en_fr)
             
             # Liste des exercices disponibles
             exercices = sorted(df['exercice'].unique())
@@ -894,64 +888,85 @@ if os.path.exists(fichier_excel):
             
             st.markdown("---")
             
-            # ========== SECTION 2 : CA CUMULÉ PAR JOUR DE LA SEMAINE ==========
-            st.subheader("📅 Chiffre d'Affaires Cumulé par Jour de la Semaine")
+            # ========== SECTION 2 : TABLEAU COMPARATIF PAR JOUR DE LA SEMAINE ==========
+            st.subheader("📅 Tableau Comparatif par Jour de la Semaine")
             
-            # Pour chaque exercice, créer un tableau
+            # Ordre des jours
+            jours_ordre = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+            
+            # Créer un tableau avec tous les exercices côte à côte
+            tableau_comparatif = {'Jour': jours_ordre}
+            
             for exercice in exercices:
-                st.markdown(f"#### Exercice {exercice}")
-                
                 df_exercice = df[df['exercice'] == exercice]
-                
-                # Calculer le CA cumulé par jour de la semaine
-                jours_ordre = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
                 
                 ca_par_jour = []
                 for jour in jours_ordre:
-                    df_jour = df_exercice[df_exercice['jour_semaine'] == jour]
+                    df_jour = df_exercice[df_exercice['jour_semaine_fr'] == jour]
                     ca_jour = df_jour['montant'].sum()
-                    nb_occurrences = len(df_jour[df_jour['montant'] > 0])
+                    ca_par_jour.append(formater_euro(ca_jour))
+                
+                tableau_comparatif[exercice] = ca_par_jour
+            
+            # Créer et afficher le DataFrame comparatif
+            df_comparatif = pd.DataFrame(tableau_comparatif)
+            st.dataframe(df_comparatif, hide_index=True, use_container_width=True, height=320)
+            
+            st.markdown("---")
+            
+            # ========== SECTION 3 : DÉTAILS PAR EXERCICE (OPTIONNEL) ==========
+            with st.expander("📋 Voir les détails par exercice"):
+                for exercice in exercices:
+                    st.markdown(f"#### Exercice {exercice}")
                     
-                    # CA moyen pour ce jour
-                    if nb_occurrences > 0:
-                        ca_moyen = ca_jour / nb_occurrences
-                    else:
-                        ca_moyen = 0
+                    df_exercice = df[df['exercice'] == exercice]
                     
-                    ca_par_jour.append({
-                        'Jour': jour,
-                        'CA Cumulé': formater_euro(ca_jour),
-                        'Nb Jours': nb_occurrences,
-                        'CA Moyen': formater_euro(ca_moyen)
-                    })
-                
-                # Afficher le tableau
-                df_jours = pd.DataFrame(ca_par_jour)
-                
-                # Utiliser des colonnes pour un affichage plus compact
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    st.dataframe(
-                        df_jours, 
-                        hide_index=True, 
-                        use_container_width=True,
-                        height=280
-                    )
-                
-                with col2:
-                    # Afficher le total de l'exercice
-                    total_exercice = df_exercice['montant'].sum()
-                    st.metric("Total Exercice", formater_euro(total_exercice))
+                    # Calculer le CA cumulé par jour de la semaine
+                    ca_par_jour = []
+                    for jour in jours_ordre:
+                        df_jour = df_exercice[df_exercice['jour_semaine_fr'] == jour]
+                        ca_jour = df_jour['montant'].sum()
+                        nb_occurrences = len(df_jour[df_jour['montant'] > 0])
+                        
+                        ca_par_jour.append({
+                            'Jour': jour,
+                            'CA Cumulé': formater_euro(ca_jour),
+                            'Nb Jours': nb_occurrences
+                        })
                     
-                    # Meilleur jour
-                    idx_max = df_jours['CA Cumulé'].apply(lambda x: float(x.replace(' €', '').replace(',', '.').replace(' ', ''))).idxmax()
-                    meilleur_jour = df_jours.loc[idx_max, 'Jour']
-                    meilleur_ca = df_jours.loc[idx_max, 'CA Cumulé']
+                    # Afficher le tableau
+                    df_jours = pd.DataFrame(ca_par_jour)
                     
-                    st.info(f"🏆 Meilleur jour : **{meilleur_jour}**\n\n{meilleur_ca}")
-                
-                st.markdown("---")
+                    # Utiliser des colonnes pour un affichage plus compact
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        st.dataframe(
+                            df_jours, 
+                            hide_index=True, 
+                            use_container_width=True,
+                            height=280
+                        )
+                    
+                    with col2:
+                        # Afficher le total de l'exercice
+                        total_exercice = df_exercice['montant'].sum()
+                        st.metric("Total Exercice", formater_euro(total_exercice))
+                        
+                        # Meilleur jour
+                        ca_valeurs = []
+                        for row in ca_par_jour:
+                            ca_str = row['CA Cumulé'].replace(' €', '').replace(',', '.').replace(' ', '')
+                            ca_valeurs.append(float(ca_str))
+                        
+                        if ca_valeurs and max(ca_valeurs) > 0:
+                            idx_max = ca_valeurs.index(max(ca_valeurs))
+                            meilleur_jour = ca_par_jour[idx_max]['Jour']
+                            meilleur_ca = ca_par_jour[idx_max]['CA Cumulé']
+                            
+                            st.info(f"🏆 Meilleur jour : **{meilleur_jour}**\n\n{meilleur_ca}")
+                    
+                    st.markdown("---")
         
         elif page == "➕ Saisie":
             st.title("➕ Saisie de données")
