@@ -316,7 +316,7 @@ if verifier_mot_de_passe():
         
         fichier_excel = st.text_input(
             "📁 Fichier Excel",
-            value="data/CA_Atelier_Vincent.xlsm",
+            value="CA_Atelier_Vincent_B2C2_vers_D4E4.xlsm",
             help="Chemin vers votre fichier Excel"
         )
         
