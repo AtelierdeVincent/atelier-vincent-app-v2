@@ -119,17 +119,17 @@ def formater_euro(montant):
     return f"{montant:,.2f} €".replace(",", " ").replace(".", ",")
 
 def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_mois_n_moins_1, total_n, total_n_moins_1, evolution_euro, evolution_pct):
-    """Génère un PDF du tableau de suivi mensuel optimisé pour tenir sur une page A4 paysage"""
+    """Génère un PDF du tableau de suivi mensuel optimisé pour tenir sur une page A4 portrait"""
     buffer = BytesIO()
     
-    # Créer le document en mode paysage
+    # Créer le document en mode portrait
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=landscape(A4),
-        rightMargin=1*cm,
-        leftMargin=1*cm,
+        pagesize=A4,  # Mode portrait
+        rightMargin=0.8*cm,
+        leftMargin=0.8*cm,
         topMargin=1.5*cm,
-        bottomMargin=1*cm
+        bottomMargin=0.8*cm
     )
     
     elements = []
@@ -138,9 +138,9 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     try:
         logo_path = "assets/logo_noir.png"
         if os.path.exists(logo_path):
-            logo = RLImage(logo_path, width=3*cm, height=3*cm)
+            logo = RLImage(logo_path, width=2.5*cm, height=2.5*cm)
             elements.append(logo)
-            elements.append(Spacer(1, 0.3*cm))
+            elements.append(Spacer(1, 0.2*cm))
     except:
         pass
     
@@ -149,9 +149,9 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=14,
+        fontSize=12,
         textColor=colors.black,
-        spaceAfter=12,
+        spaceAfter=10,
         alignment=TA_CENTER,
         fontName='Helvetica-Bold'
     )
@@ -159,7 +159,7 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     title_text = f"Suivi Mensuel - {mois_selectionne} {annee_mois_n} vs {mois_selectionne} {annee_mois_n_moins_1}"
     title = Paragraph(title_text, title_style)
     elements.append(title)
-    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Spacer(1, 0.2*cm))
     
     # Préparer les données du tableau
     table_data = [['Jour', 'Date N-1', 'Date N', 'Montant N-1', 'Nb C. N-1', 'Montant N', 'Nb C. N']]
@@ -175,8 +175,9 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
             row['Nb Collab N']
         ])
     
-    # Créer le tableau avec des largeurs optimisées
-    col_widths = [2*cm, 2.5*cm, 2.5*cm, 3*cm, 1.8*cm, 3*cm, 1.8*cm]
+    # Créer le tableau avec des largeurs optimisées pour portrait
+    # Largeur totale disponible : environ 19 cm
+    col_widths = [1.5*cm, 2.2*cm, 2.2*cm, 2.8*cm, 1.4*cm, 2.8*cm, 1.4*cm]
     
     table = Table(table_data, colWidths=col_widths, repeatRows=1)
     
@@ -187,27 +188,27 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 0), (-1, 0), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('TOPPADDING', (0, 0), (-1, 0), 6),
         
         # Corps du tableau
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('FONTSIZE', (0, 1), (-1, -1), 6),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-        ('TOPPADDING', (0, 1), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+        ('TOPPADDING', (0, 1), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 3),
     ]))
     
     elements.append(table)
-    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Spacer(1, 0.3*cm))
     
     # Totaux
     totaux_style = ParagraphStyle(
         'Totaux',
         parent=styles['Normal'],
-        fontSize=10,
+        fontSize=9,
         textColor=colors.black,
         alignment=TA_CENTER,
         fontName='Helvetica-Bold'
@@ -226,14 +227,14 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     footer_style = ParagraphStyle(
         'Footer',
         parent=styles['Normal'],
-        fontSize=8,
+        fontSize=7,
         textColor=colors.grey,
         alignment=TA_CENTER
     )
     
     date_generation = datetime.now().strftime("%d/%m/%Y à %H:%M")
     footer = Paragraph(f"<i>Document généré le {date_generation} - L'Atelier de Vincent</i>", footer_style)
-    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Spacer(1, 0.2*cm))
     elements.append(footer)
     
     # Construire le PDF
