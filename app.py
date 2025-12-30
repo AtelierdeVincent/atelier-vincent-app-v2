@@ -139,8 +139,11 @@ def charger_donnees():
         # Convertir en DataFrame
         df = pd.DataFrame(data)
         
-        # Traiter les colonnes
-        df['date'] = pd.to_datetime(df['Date'], errors='coerce')
+        # Traiter les colonnes avec parsing robuste des dates
+        # Google Sheets peut retourner les dates au format "1/9/2024" (sans zéros de tête)
+        # On force dayfirst=True pour le format européen (jour/mois/année)
+        df['date'] = pd.to_datetime(df['Date'], errors='coerce', dayfirst=True)
+        
         df['montant'] = pd.to_numeric(df['Valeur'], errors='coerce')
         df['nb_collaborateurs'] = pd.to_numeric(df['Nb_Collaborateurs'], errors='coerce').fillna(0).astype(int)
         
