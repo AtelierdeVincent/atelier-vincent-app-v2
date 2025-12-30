@@ -74,30 +74,20 @@ def verifier_mot_de_passe():
     st.title("🔒 L'Atelier de Vincent")
     st.markdown("### Veuillez vous connecter pour accéder à l'application")
 
-    # Fonction appelée quand on appuie sur Entrée
-    def check_password():
-        if st.session_state["password_input"] == "3108":
+    with st.form("login_form"):
+        password = st.text_input(
+            "Mot de passe",
+            type="password",
+            placeholder="Entrez le mot de passe"
+        )
+        submitted = st.form_submit_button("Se connecter", use_container_width=True)
+
+    if submitted:
+        if password == "3108":
             st.session_state["password_correct"] = True
             st.rerun()
         else:
-            st.session_state["password_correct"] = False
-            st.session_state["error"] = "😕 Mot de passe incorrect. Réessayez."
-
-    st.text_input(
-        "Mot de passe",
-        type="password",
-        placeholder="Entrez le mot de passe",
-        key="password_input",
-        on_change=check_password  # 🔥 Valide automatiquement avec Entrée
-    )
-
-    # Affichage de l’erreur si nécessaire
-    if "error" in st.session_state:
-        st.error(st.session_state["error"])
-
-    # Bouton optionnel (garde-le si tu veux)
-    if st.button("Se connecter", use_container_width=True):
-        check_password()
+            st.error("😕 Mot de passe incorrect. Réessayez.")
 
     return False
 # ==================== FONCTIONS UTILES ====================
