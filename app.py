@@ -139,27 +139,56 @@ def charger_donnees():
         # Convertir en DataFrame
         df = pd.DataFrame(data)
         
-        # DEBUG : Afficher quelques valeurs brutes pour diagnostiquer
-        if len(df) > 0:
-            sample_valeur = df['Valeur'].iloc[-5:].tolist() if 'Valeur' in df.columns else []
-            st.sidebar.info(f"🔍 Debug - Dernières valeurs lues : {sample_valeur}")
-        
         # Traiter les colonnes avec parsing robuste des dates
-        # Google Sheets peut retourner les dates au format "1/9/2024" (sans zéros de tête)
-        # On force dayfirst=True pour le format européen (jour/mois/année)
         df['date'] = pd.to_datetime(df['Date'], errors='coerce', dayfirst=True)
         
-        df['montant'] = pd.to_numeric(df['Valeur'], errors='coerce')
+        # Nettoyage robuste des montants
+        # Google Sheets peut retourner des valeurs avec des caractères Unicode bizarres
+        def nettoyer_montant(valeur):
+            if pd.isna(valeur):
+                return 0
+            
+            # Si c'est déjà un nombre, le retourner
+            if isinstance(valeur, (int, float)):
+                return float(valeur)
+            
+            # Si c'est une chaîne, nettoyer
+            if isinstance(valeur, str):
+                # Enlever les caractères Unicode bizarres et les espaces
+                import re
+                valeur_nettoyee = re.sub(r'[^\d,.-]', '', valeur)
+                # Remplacer la virgule par un point pour le parsing
+                valeur_nettoyee = valeur_nettoyee.replace(',', '.')
+                try:
+                    return float(valeur_nettoyee)
+                except:
+                    return 0
+            
+            return 0
+        
+        df['montant'] = df['Valeur'].apply(nettoyer_montant)
         df['nb_collaborateurs'] = pd.to_numeric(df['Nb_Collaborateurs'], errors='coerce').fillna(0).astype(int)
         
-        # CORRECTION : Si Google Sheets stocke les valeurs en centimes
-        # Détecter si les montants moyens sont anormalement élevés
-        montant_moyen = df[df['montant'] > 0]['montant'].mean()
-        st.sidebar.info(f"📊 Montant moyen calculé : {montant_moyen:.2f}€")
-        
-        if montant_moyen > 5000:  # Un CA moyen journalier > 5000€ est suspect
-            df['montant'] = df['montant'] / 100
-            st.warning("⚠️ Correction : montants convertis de centimes en euros")
+        # DEBUG : Afficher des infos détaillées
+        if len(df) > 0:
+            montants_non_nuls = df[df['montant'] > 0]['montant']
+            if len(montants_non_nuls) > 0:
+                sample = montants_non_nuls.tail(5).tolist()
+                moyenne = montants_non_nuls.mean()
+                maximum = montants_non_nuls.max()
+                
+                st.sidebar.markdown("### 🔍 Diagnostic")
+                st.sidebar.code(f"Valeurs nettoyées : {[f'{x:.2f}' for x in sample]}")
+                st.sidebar.code(f"Moyenne : {moyenne:.2f}€")
+                st.sidebar.code(f"Maximum : {maximum:.2f}€")
+                
+                # Détection : si la moyenne est > 1000€, diviser par 100
+                if moyenne > 1000:
+                    st.sidebar.warning(f"⚠️ Moyenne élevée : {moyenne:.2f}€")
+                    df['montant'] = df['montant'] / 100
+                    nouvelle_moyenne = df[df['montant'] > 0]['montant'].mean()
+                    st.sidebar.success(f"✅ Après correction : {nouvelle_moyenne:.2f}€")
+                    st.info("✅ Correction appliquée : montants divisés par 100")
         
         df = df.dropna(subset=['date', 'montant'])
         df = df[['date', 'montant', 'nb_collaborateurs']].copy()
