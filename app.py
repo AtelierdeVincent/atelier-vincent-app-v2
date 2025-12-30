@@ -1115,7 +1115,60 @@ if df is not None and not df.empty:
         
         st.markdown("---")
         
-        # ========== SECTION 2 : TABLEAU COMPARATIF PAR JOUR DE LA SEMAINE ==========
+        # ========== SECTION 2 : TABLEAU DES MONTANTS MENSUELS PAR EXERCICE ==========
+        st.subheader("📊 Montants Mensuels par Exercice")
+        
+        # Ordre des mois (juillet à juin pour correspondre à l'exercice fiscal)
+        mois_ordre = ['Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+                      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
+        
+        # Préparer les données
+        monthly_data = []
+        for exercice in exercices:
+            if exercice >= '2019/2020':  # Filtrer à partir de 2019/2020
+                row = {'Exercice': exercice}
+                df_ex = df[df['exercice'] == exercice]
+                
+                for mois in mois_ordre:
+                    montant = df_ex[df_ex['mois'] == mois]['montant'].sum()
+                    row[mois] = montant
+                
+                # Ajouter le total annuel
+                row['Total'] = df_ex['montant'].sum()
+                monthly_data.append(row)
+        
+        # Créer le DataFrame
+        df_monthly = pd.DataFrame(monthly_data)
+        
+        # Ajouter une ligne "Moyenne" en bas
+        moyenne_row = {'Exercice': 'Moyenne'}
+        for mois in mois_ordre:
+            moyenne_row[mois] = df_monthly[mois].mean()
+        moyenne_row['Total'] = df_monthly['Total'].mean()
+        df_monthly = pd.concat([df_monthly, pd.DataFrame([moyenne_row])], ignore_index=True)
+        
+        # Formater l'affichage
+        def formater_montant(val):
+            if isinstance(val, (int, float)):
+                return f"{val:,.2f} €".replace(',', ' ')
+            return val
+        
+        # Créer un dictionnaire de formatage pour toutes les colonnes sauf 'Exercice'
+        format_dict = {col: formater_montant for col in df_monthly.columns if col != 'Exercice'}
+        
+        # Afficher le tableau avec formatage
+        st.dataframe(
+            df_monthly.style.format(format_dict).set_properties(**{
+                'text-align': 'right'
+            }, subset=[col for col in df_monthly.columns if col != 'Exercice']),
+            hide_index=True,
+            use_container_width=True,
+            height=400
+        )
+        
+        st.markdown("---")
+        
+        # ========== SECTION 3 : TABLEAU COMPARATIF PAR JOUR DE LA SEMAINE ==========
         st.subheader("📅 Tableau Comparatif par Jour de la Semaine")
         
         # Ordre des jours
@@ -1141,7 +1194,7 @@ if df is not None and not df.empty:
         
         st.markdown("---")
         
-        # ========== SECTION 3 : DÉTAILS PAR EXERCICE (OPTIONNEL) ==========
+        # ========== SECTION 4 : DÉTAILS PAR EXERCICE (OPTIONNEL) ==========
         with st.expander("📋 Voir les détails par exercice"):
             for exercice in exercices:
                 st.markdown(f"#### Exercice {exercice}")
