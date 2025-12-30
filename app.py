@@ -139,10 +139,27 @@ def charger_donnees():
         # Convertir en DataFrame
         df = pd.DataFrame(data)
         
-        # Traiter les colonnes
-        df['date'] = pd.to_datetime(df['Date'], errors='coerce')
+        # DEBUG : Afficher quelques valeurs brutes pour diagnostiquer
+        if len(df) > 0:
+            sample_valeur = df['Valeur'].iloc[-5:].tolist() if 'Valeur' in df.columns else []
+            st.sidebar.info(f"🔍 Debug - Dernières valeurs lues : {sample_valeur}")
+        
+        # Traiter les colonnes avec parsing robuste des dates
+        # Google Sheets peut retourner les dates au format "1/9/2024" (sans zéros de tête)
+        # On force dayfirst=True pour le format européen (jour/mois/année)
+        df['date'] = pd.to_datetime(df['Date'], errors='coerce', dayfirst=True)
+        
         df['montant'] = pd.to_numeric(df['Valeur'], errors='coerce')
         df['nb_collaborateurs'] = pd.to_numeric(df['Nb_Collaborateurs'], errors='coerce').fillna(0).astype(int)
+        
+        # CORRECTION : Si Google Sheets stocke les valeurs en centimes
+        # Détecter si les montants moyens sont anormalement élevés
+        montant_moyen = df[df['montant'] > 0]['montant'].mean()
+        st.sidebar.info(f"📊 Montant moyen calculé : {montant_moyen:.2f}€")
+        
+        if montant_moyen > 5000:  # Un CA moyen journalier > 5000€ est suspect
+            df['montant'] = df['montant'] / 100
+            st.warning("⚠️ Correction : montants convertis de centimes en euros")
         
         df = df.dropna(subset=['date', 'montant'])
         df = df[['date', 'montant', 'nb_collaborateurs']].copy()
