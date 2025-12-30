@@ -333,7 +333,7 @@ fichier_excel = st.sidebar.text_input(
 
 page = st.sidebar.radio(
     "Navigation",
-    ["🏠 Accueil", "📊 Suivi", "📈 Historique", "➕ Saisie", "⚙️ Données brutes"]
+    ["🏠 Accueil", "📊 Suivi", "📈 Historique", "💰 Calculateur Financier", "⚙️ Données brutes"]
 )
 
 st.sidebar.markdown("---")
@@ -567,25 +567,21 @@ if os.path.exists(fichier_excel):
             
             with col_jauge:
                 # Barre de progression simple
-                st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}**")
-    
-                # Calcul du pourcentage par rapport à l'objectif COMPLET du mois
-                pourcentage_vers_objectif = (cumul_mois_n / objectif_mois * 100) if objectif_mois > 0 else 0
-                progress_value = min(cumul_mois_n / objectif_mois, 1.0) if objectif_mois > 0 else 0  # Entre 0 et 1
-    
+                st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}** (Mois 2024/2025 +4%)")
+                
+                # Calcul du pourcentage
+                progress_value = min(pourcentage_objectif / 100, 1.0)  # Entre 0 et 1
+                
                 # Afficher la barre de progression
                 st.progress(progress_value)
-    
-                # Légendes sous la barre de progression
-                col_leg1, col_leg2, col_leg3 = st.columns(3)
-                with col_leg1:
-                    st.markdown(f"<small>0 €</small>", unsafe_allow_html=True)
-                with col_leg2:
-                    st.markdown(f"<small style='text-align: center; display: block;'><b>Réalisé : {formater_euro(cumul_mois_n)}</b> ({pourcentage_vers_objectif:.1f}%)</small>", unsafe_allow_html=True)
-                with col_leg3:
-                    st.markdown(f"<small style='text-align: right; display: block;'><b>{formater_euro(objectif_mois)}</b></small>", unsafe_allow_html=True)
-
-                            
+                
+                # Affichage des détails
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric("Réalisé", formater_euro(cumul_mois_n))
+                with col_b:
+                    st.metric("Progression", f"{pourcentage_objectif:.1f}%")
+            
             evolution_mois_euro = cumul_mois_n - cumul_mois_n_moins_1
             evolution_mois_pct = (evolution_mois_euro / cumul_mois_n_moins_1 * 100) if cumul_mois_n_moins_1 != 0 else 0
             
@@ -1102,9 +1098,22 @@ if os.path.exists(fichier_excel):
                     
                     st.markdown("---")
         
-        elif page == "➕ Saisie":
-            st.title("➕ Saisie de données")
-            st.info("Utilisez le formulaire sur la page d'accueil")
+        elif page == "💰 Calculateur Financier":
+            st.title("💰 Calculateur Financier")
+            
+            # Charger et afficher le calculateur HTML
+            try:
+                # Lire le fichier HTML
+                with open('Calculateur_Salon.html', 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                
+                # Afficher le HTML dans un iframe
+                import streamlit.components.v1 as components
+                components.html(html_content, height=1200, scrolling=True)
+                
+            except FileNotFoundError:
+                st.error("❌ Fichier Calculateur_Salon.html introuvable")
+                st.info("💡 Assurez-vous que le fichier Calculateur_Salon.html est présent à la racine de votre application")
         
         elif page == "⚙️ Données brutes":
             st.title("⚙️ Données brutes")

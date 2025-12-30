@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculateur Financier - L'Atelier de Vincent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #1a202c;
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            color: #718096;
+            font-size: 16px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 1024px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #1a202c;
+            font-size: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card h2::before {
+            content: '📊';
+            font-size: 24px;
+        }
+        
+        .input-group {
+            margin-bottom: 25px;
+        }
+        
+        .input-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .input-label span:first-child {
+            color: #4a5568;
+            font-weight: 600;
+        }
+        
+        .input-label span:last-child {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.5);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.5);
+        }
+        
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 5px;
+        }
+        
+        .info-text {
+            font-size: 13px;
+            color: #718096;
+            margin-top: 8px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-row.total {
+            border-top: 2px solid #cbd5e0;
+            padding-top: 12px;
+            margin-top: 8px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .resultat-box {
+            text-align: center;
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid;
+            margin-bottom: 30px;
+        }
+        
+        .resultat-box.excellent {
+            background: #f0fdf4;
+            border-color: #10b981;
+        }
+        
+        .resultat-box.bon {
+            background: #f0fdfa;
+            border-color: #14b8a6;
+        }
+        
+        .resultat-box.moyen {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+        
+        .resultat-box.faible {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+        
+        .resultat-value {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+        
+        .resultat-label {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .resultat-taux {
+            font-size: 14px;
+            color: #718096;
+        }
+        
+        .comparison {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .comparison h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+        
+        .comparison-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .comparison-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .comparison-label {
+            font-size: 13px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .comparison-values {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .comparison-old {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .comparison-change {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        
+        .section-divider {
+            border-top: 2px solid #e2e8f0;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧮 Calculateur Financier</h1>
+            <p>L'Atelier de Vincent - Simulation Exercice 2025/2026</p>
+        </div>
+        
+        <div class="grid">
+            <!-- Colonne gauche - Paramètres -->
+            <div>
+                <!-- CA -->
+                <div class="card">
+                    <h2>Chiffre d'Affaires</h2>
+                    <div class="input-group">
+                        <div class="input-label">
+                            <span>CA TTC</span>
+                            <span id="caTTC">157 000 €</span>
+                        </div>
+                        <input type="range" id="caTTCRange" min="140000" max="200000" step="1000" value="157000">
+                        <div class="range-labels">
+                            <span>140 000 €</span>
+                            <span>200 000 €</span>
+                        </div>
+                        <div class="info-text">CA HT : <span id="caHT">130 833 €</span></div>
+                    </div>
+                </div>
+                
+                <!-- Salaires -->
+                <div class="card" style="margin-top: 20px;">
+                    <h2>💼 Salaires</h2>
+                    
+                    <!-- Gérant -->
+                    <div class="input-group">
+                        <div class="input-label">
+                            <span>Gérant TNS - Net mensuel</span>
+                            <span id="salaireGerantMensuel">1 700 €</span>
+                        </div>
+                        <input type="range" id="salaireGerantRange" min="1000" max="2500" step="10" value="1700">
+                        <div class="range-labels">
+                            <span>1 000 €</span>
+                            <span>2 500 €</span>
+                        </div>
+                        <div class="info-text">
+                            Net annuel : <span id="salaireGerantAnnuel">20 400 €</span><br>
+                            Rémunération déclarée : <span id="remunerationGerant">25 100 €</span><br>
+                            Cotisations TNS (18,7%) : <span id="cotisationsTNS">4 700 €</span> <small>(payées par vous)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="section-divider"></div>
+                    
+                    <!-- Employé -->
+                    <div class="input-group">
+                        <div class="input-label">
+                            <span>Employé - Brut annuel HC</span>
+                            <span id="salaireEmploye">25 200 €</span>
+                        </div>
+                        <input type="range" id="salaireEmployeRange" min="20000" max="35000" step="100" value="25200">
+                        <div class="range-labels">
+                            <span>20 000 €</span>
+                            <span>35 000 €</span>
+                        </div>
+                        <div class="info-text">
+                            Charges patronales (42%) : <span id="chargesPatronales">10 584 €</span><br>
+                            Coût total : <span id="coutEmploye">35 784 €</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Autres charges -->
+                <div class="card" style="margin-top: 20px;">
+                    <h2>💰 Autres Charges</h2>
+                    <div class="input-group">
+                        <div class="input-label">
+                            <span>Charges hors salaires</span>
+                            <span id="autresCharges">65 495 €</span>
+                        </div>
+                        <input type="range" id="autresChargesRange" min="55000" max="75000" step="500" value="65495">
+                        <div class="range-labels">
+                            <span>55 000 €</span>
+                            <span>75 000 €</span>
+                        </div>
+                        <div class="info-text">
+                            (Achats, fournitures, loyer, assurances, taxes, amortissements...)
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Colonne droite - Résultats -->
+            <div>
+                <!-- Résultat -->
+                <div id="resultatBox" class="resultat-box excellent">
+                    <div class="resultat-label">Résultat Net 2025/2026</div>
+                    <div class="resultat-value" id="resultat">6 056 €</div>
+                    <div id="resultatLabel" class="resultat-label">✅ Excellent</div>
+                    <div class="resultat-taux">Taux de résultat : <span id="tauxResultat">4.6%</span></div>
+                </div>
+                
+                <!-- Structure charges -->
+                <div class="card">
+                    <h2>📋 Structure des Charges</h2>
+                    <div class="detail-row">
+                        <span>Gérant TNS</span>
+                        <strong id="chargeGerant">25 100 €</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>Employé</span>
+                        <strong id="chargeEmploye">35 784 €</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>Autres charges</span>
+                        <strong id="chargeAutres">65 495 €</strong>
+                    </div>
+                    <div class="detail-row total">
+                        <span>TOTAL CHARGES</span>
+                        <strong id="chargesTotales">126 379 €</strong>
+                    </div>
+                </div>
+                
+                <!-- Marge sécurité -->
+                <div class="card" style="margin-top: 20px;">
+                    <h2>🛡️ Marge de Sécurité</h2>
+                    <div class="detail-row">
+                        <span>Seuil de rentabilité HT</span>
+                        <strong>119 942 €</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>CA objectif HT</span>
+                        <strong id="caHT2">130 833 €</strong>
+                    </div>
+                    <div class="detail-row total">
+                        <span>Marge de sécurité</span>
+                        <strong id="margeSecurite" style="color: #10b981;">8.3%</strong>
+                    </div>
+                    <div class="info-text" id="margeEuros" style="margin-top: 5px;">
+                        10 891 € au-dessus du seuil
+                    </div>
+                </div>
+                
+                <!-- Comparaison -->
+                <div class="comparison" style="margin-top: 20px;">
+                    <h3>📈 Comparaison vs 2024/2025</h3>
+                    
+                    <div class="comparison-item">
+                        <div class="comparison-label">Salaire net annuel</div>
+                        <div class="comparison-values">
+                            <span class="comparison-old" id="compSalaireOld">15 300 € → 20 400 €</span>
+                            <span class="comparison-change" id="compSalaireChange">+5 100 € (+33%)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="comparison-item">
+                        <div class="comparison-label">Résultat net</div>
+                        <div class="comparison-values">
+                            <span class="comparison-old" id="compResultatOld">4 391 € → 6 056 €</span>
+                            <span class="comparison-change" id="compResultatChange">+1 665 € (+38%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px; color: white; font-size: 14px;">
+            <p>💡 Ajustez les curseurs pour simuler différents scénarios</p>
+            <p style="margin-top: 5px; opacity: 0.8;">Données basées sur l'exercice comptable 2024/2025 (juillet-juin)</p>
+        </div>
+    </div>
+    
+    <script>
+        // Constantes
+        const TAUX_COTISATIONS_TNS = 0.187;
+        const TAUX_CHARGES_PATRONALES = 0.42;
+        const TAUX_TVA = 0.20;
+        const SEUIL_RENTABILITE_HT = 119942;
+        const SALAIRE_NET_2024 = 15300;
+        const RESULTAT_2024 = 4391;
+        
+        // Fonction de formatage
+        function formatEuro(value) {
+            return new Intl.NumberFormat('fr-FR', {
+                style: 'currency',
+                currency: 'EUR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+        
+        // Fonction de calcul
+        function calculer() {
+            // Récupérer les valeurs
+            const caTTC = parseFloat(document.getElementById('caTTCRange').value);
+            const salaireGerantMensuel = parseFloat(document.getElementById('salaireGerantRange').value);
+            const salaireEmployeBrut = parseFloat(document.getElementById('salaireEmployeRange').value);
+            const autresCharges = parseFloat(document.getElementById('autresChargesRange').value);
+            
+            // Calculs
+            const caHT = caTTC / (1 + TAUX_TVA);
+            const salaireGerantAnnuel = salaireGerantMensuel * 12;
+            const remunerationGerant = salaireGerantAnnuel / (1 - TAUX_COTISATIONS_TNS);
+            const cotisationsTNS = remunerationGerant - salaireGerantAnnuel;
+            
+            const chargesPatronales = salaireEmployeBrut * TAUX_CHARGES_PATRONALES;
+            const coutEmploye = salaireEmployeBrut + chargesPatronales;
+            
+            const masseSalariale = remunerationGerant + coutEmploye;
+            const chargesTotales = masseSalariale + autresCharges;
+            
+            const resultat = caHT - chargesTotales;
+            const tauxResultat = (resultat / caHT) * 100;
+            
+            const margeSecurite = caHT - SEUIL_RENTABILITE_HT;
+            const margeSecuritePct = (margeSecurite / caHT) * 100;
+            
+            // Comparaisons
+            const evolutionSalaire = salaireGerantAnnuel - SALAIRE_NET_2024;
+            const evolutionSalairePct = (evolutionSalaire / SALAIRE_NET_2024) * 100;
+            const evolutionResultat = resultat - RESULTAT_2024;
+            const evolutionResultatPct = (evolutionResultat / RESULTAT_2024) * 100;
+            
+            // Mise à jour de l'affichage
+            document.getElementById('caTTC').textContent = formatEuro(caTTC);
+            document.getElementById('caHT').textContent = formatEuro(caHT);
+            document.getElementById('caHT2').textContent = formatEuro(caHT);
+            
+            document.getElementById('salaireGerantMensuel').textContent = formatEuro(salaireGerantMensuel);
+            document.getElementById('salaireGerantAnnuel').textContent = formatEuro(salaireGerantAnnuel);
+            document.getElementById('remunerationGerant').textContent = formatEuro(remunerationGerant);
+            document.getElementById('cotisationsTNS').textContent = formatEuro(cotisationsTNS);
+            
+            document.getElementById('salaireEmploye').textContent = formatEuro(salaireEmployeBrut);
+            document.getElementById('chargesPatronales').textContent = formatEuro(chargesPatronales);
+            document.getElementById('coutEmploye').textContent = formatEuro(coutEmploye);
+            
+            document.getElementById('autresCharges').textContent = formatEuro(autresCharges);
+            
+            document.getElementById('chargeGerant').textContent = formatEuro(remunerationGerant);
+            document.getElementById('chargeEmploye').textContent = formatEuro(coutEmploye);
+            document.getElementById('chargeAutres').textContent = formatEuro(autresCharges);
+            document.getElementById('chargesTotales').textContent = formatEuro(chargesTotales);
+            
+            document.getElementById('resultat').textContent = formatEuro(resultat);
+            document.getElementById('tauxResultat').textContent = tauxResultat.toFixed(1) + '%';
+            
+            document.getElementById('margeSecurite').textContent = margeSecuritePct.toFixed(1) + '%';
+            document.getElementById('margeEuros').textContent = formatEuro(margeSecurite) + ' au-dessus du seuil';
+            
+            // Couleur et label du résultat
+            const resultatBox = document.getElementById('resultatBox');
+            const resultatLabel = document.getElementById('resultatLabel');
+            const margeSecuriteEl = document.getElementById('margeSecurite');
+            
+            resultatBox.className = 'resultat-box';
+            if (resultat < 0) {
+                resultatBox.classList.add('faible');
+                resultatLabel.textContent = '🔴 Déficit';
+                margeSecuriteEl.style.color = '#ef4444';
+            } else if (resultat < 2000) {
+                resultatBox.classList.add('faible');
+                resultatLabel.textContent = '⚠️ Très faible';
+                margeSecuriteEl.style.color = '#ef4444';
+            } else if (resultat < 4000) {
+                resultatBox.classList.add('moyen');
+                resultatLabel.textContent = '⚠️ Faible';
+                margeSecuriteEl.style.color = '#f59e0b';
+            } else if (resultat < 6000) {
+                resultatBox.classList.add('bon');
+                resultatLabel.textContent = '✅ Bon';
+                margeSecuriteEl.style.color = '#14b8a6';
+            } else {
+                resultatBox.classList.add('excellent');
+                resultatLabel.textContent = '✅ Excellent';
+                margeSecuriteEl.style.color = '#10b981';
+            }
+            
+            // Comparaison
+            document.getElementById('compSalaireOld').textContent = formatEuro(SALAIRE_NET_2024) + ' → ' + formatEuro(salaireGerantAnnuel);
+            document.getElementById('compSalaireChange').textContent = (evolutionSalaire >= 0 ? '+' : '') + formatEuro(evolutionSalaire) + ' (' + (evolutionSalairePct >= 0 ? '+' : '') + evolutionSalairePct.toFixed(0) + '%)';
+            
+            document.getElementById('compResultatOld').textContent = formatEuro(RESULTAT_2024) + ' → ' + formatEuro(resultat);
+            document.getElementById('compResultatChange').textContent = (evolutionResultat >= 0 ? '+' : '') + formatEuro(evolutionResultat) + ' (' + (evolutionResultatPct >= 0 ? '+' : '') + evolutionResultatPct.toFixed(0) + '%)';
+        }
+        
+        // Événements
+        document.getElementById('caTTCRange').addEventListener('input', calculer);
+        document.getElementById('salaireGerantRange').addEventListener('input', calculer);
+        document.getElementById('salaireEmployeRange').addEventListener('input', calculer);
+        document.getElementById('autresChargesRange').addEventListener('input', calculer);
+        
+        // Calcul initial
+        calculer();
+    </script>
+</body>
+</html>
