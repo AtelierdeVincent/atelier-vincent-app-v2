@@ -190,34 +190,16 @@ def charger_donnees():
         # Sélectionner seulement les colonnes nécessaires
         df = df[['date', 'montant', 'nb_collaborateurs']].copy()
         
-        # DEBUG : Afficher les statistiques de chargement
-        st.sidebar.markdown("### 📊 Statistiques de chargement")
-        st.sidebar.code(f"Lignes dans Sheets : {nb_lignes_initiales}")
-        st.sidebar.code(f"Dates invalides : {nb_dates_invalides}")
-        st.sidebar.code(f"Montants à 0 : {nb_montants_nuls}")
-        st.sidebar.code(f"Lignes chargées : {nb_lignes_finales}")
-        
-        if nb_lignes_initiales != nb_lignes_finales:
-            st.sidebar.warning(f"⚠️ {nb_lignes_initiales - nb_lignes_finales} lignes exclues")
-        
-        # DEBUG : Montants
+        # Détection et correction automatique si nécessaire
         if len(df) > 0:
             montants_non_nuls = df['montant']
             if len(montants_non_nuls) > 0:
-                sample = montants_non_nuls.tail(5).tolist()
                 moyenne = montants_non_nuls.mean()
                 
-                st.sidebar.markdown("### 🔍 Diagnostic montants")
-                st.sidebar.code(f"Derniers montants : {[f'{x:.2f}' for x in sample]}")
-                st.sidebar.code(f"Moyenne : {moyenne:.2f}€")
-                
-                # Détection : si la moyenne est > 1000€, diviser par 100
+                # Si la moyenne est > 1000€, diviser par 100
                 if moyenne > 1000:
-                    st.sidebar.warning(f"⚠️ Moyenne élevée : {moyenne:.2f}€")
                     df['montant'] = df['montant'] / 100
-                    nouvelle_moyenne = df['montant'].mean()
-                    st.sidebar.success(f"✅ Après correction : {nouvelle_moyenne:.2f}€")
-                    st.info("✅ Correction appliquée : montants divisés par 100")
+                    st.info("✅ Correction automatique appliquée aux montants")
         
         df = df.dropna(subset=['date', 'montant'])
         df = df[['date', 'montant', 'nb_collaborateurs']].copy()
@@ -374,8 +356,9 @@ def enregistrer_transaction(date_saisie, montant, nb_collaborateurs):
         
         # Préparer les données
         annee = date_saisie.year
-        date_str = date_saisie.strftime('%Y-%m-%d')
-        cle = f"{annee}|{date_str}"
+        # Format pour Google Sheets : d/m/yyyy (sans zéros de tête)
+        date_str_sheets = f"{date_saisie.day}/{date_saisie.month}/{date_saisie.year}"
+        cle = f"{annee}|{date_saisie.strftime('%Y-%m-%d')}"
         
         # Noms des jours et mois en français
         jours_fr = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
@@ -391,9 +374,17 @@ def enregistrer_transaction(date_saisie, montant, nb_collaborateurs):
         # Trouver la ligne correspondante (chercher dans la colonne Date - colonne C = index 2)
         ligne_existante = None
         for idx, row in enumerate(all_data[1:], start=2):  # Commencer à la ligne 2 (après l'en-tête)
-            if len(row) > 2 and row[2] == date_str:  # Colonne C (index 2) = Date
-                ligne_existante = idx
-                break
+            if len(row) > 2:
+                # Comparer les dates en les parsant (pour gérer tous les formats)
+                date_row = row[2]
+                try:
+                    # Parser la date du sheet
+                    date_parsed = pd.to_datetime(date_row, dayfirst=True).date()
+                    if date_parsed == date_saisie.date():
+                        ligne_existante = idx
+                        break
+                except:
+                    continue
         
         if ligne_existante:
             if montant == 0:
@@ -412,13 +403,13 @@ def enregistrer_transaction(date_saisie, montant, nb_collaborateurs):
             else:
                 # AJOUT : Nouvelle date
                 nouvelle_ligne = [
-                    cle,                # Clé
-                    annee,              # Année
-                    date_str,           # Date
-                    jour_semaine,       # Jour
-                    mois_nom,           # Mois
-                    montant,            # Valeur
-                    nb_collaborateurs   # Nb_Collaborateurs
+                    cle,                  # Clé (A)
+                    annee,                # Année (B)
+                    date_str_sheets,      # Date au format Google Sheets : d/m/yyyy (C)
+                    jour_semaine,         # Jour (D)
+                    mois_nom,             # Mois (E)
+                    montant,              # Valeur (F)
+                    nb_collaborateurs     # Nb_Collaborateurs (G)
                 ]
                 
                 worksheet.append_row(nouvelle_ligne)
