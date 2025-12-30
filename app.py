@@ -139,25 +139,23 @@ def charger_donnees():
         # Convertir en DataFrame
         df = pd.DataFrame(data)
         
+        # Compter les lignes initiales
+        nb_lignes_initiales = len(df)
+        
         # Traiter les colonnes avec parsing robuste des dates
         df['date'] = pd.to_datetime(df['Date'], errors='coerce', dayfirst=True)
         
         # Nettoyage robuste des montants
-        # Google Sheets peut retourner des valeurs avec des caractères Unicode bizarres
         def nettoyer_montant(valeur):
             if pd.isna(valeur):
                 return 0
             
-            # Si c'est déjà un nombre, le retourner
             if isinstance(valeur, (int, float)):
                 return float(valeur)
             
-            # Si c'est une chaîne, nettoyer
             if isinstance(valeur, str):
-                # Enlever les caractères Unicode bizarres et les espaces
                 import re
                 valeur_nettoyee = re.sub(r'[^\d,.-]', '', valeur)
-                # Remplacer la virgule par un point pour le parsing
                 valeur_nettoyee = valeur_nettoyee.replace(',', '.')
                 try:
                     return float(valeur_nettoyee)
@@ -169,18 +167,35 @@ def charger_donnees():
         df['montant'] = df['Valeur'].apply(nettoyer_montant)
         df['nb_collaborateurs'] = pd.to_numeric(df['Nb_Collaborateurs'], errors='coerce').fillna(0).astype(int)
         
-        # DEBUG : Afficher des infos détaillées
+        # Compter combien de lignes sont perdues
+        nb_dates_invalides = df['date'].isna().sum()
+        nb_montants_nuls = (df['montant'] == 0).sum()
+        
+        # Filtrer les lignes invalides
+        df_avant_filtre = df.copy()
+        df = df.dropna(subset=['date', 'montant'])
+        nb_lignes_finales = len(df)
+        
+        # DEBUG : Afficher les statistiques de chargement
+        st.sidebar.markdown("### 📊 Statistiques de chargement")
+        st.sidebar.code(f"Lignes dans Sheets : {nb_lignes_initiales}")
+        st.sidebar.code(f"Dates invalides : {nb_dates_invalides}")
+        st.sidebar.code(f"Montants à 0 : {nb_montants_nuls}")
+        st.sidebar.code(f"Lignes chargées : {nb_lignes_finales}")
+        
+        if nb_lignes_initiales != nb_lignes_finales:
+            st.sidebar.warning(f"⚠️ {nb_lignes_initiales - nb_lignes_finales} lignes exclues !")
+        
+        # DEBUG : Montants
         if len(df) > 0:
             montants_non_nuls = df[df['montant'] > 0]['montant']
             if len(montants_non_nuls) > 0:
                 sample = montants_non_nuls.tail(5).tolist()
                 moyenne = montants_non_nuls.mean()
-                maximum = montants_non_nuls.max()
                 
-                st.sidebar.markdown("### 🔍 Diagnostic")
-                st.sidebar.code(f"Valeurs nettoyées : {[f'{x:.2f}' for x in sample]}")
+                st.sidebar.markdown("### 🔍 Diagnostic montants")
+                st.sidebar.code(f"Derniers montants : {[f'{x:.2f}' for x in sample]}")
                 st.sidebar.code(f"Moyenne : {moyenne:.2f}€")
-                st.sidebar.code(f"Maximum : {maximum:.2f}€")
                 
                 # Détection : si la moyenne est > 1000€, diviser par 100
                 if moyenne > 1000:
