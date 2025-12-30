@@ -626,18 +626,34 @@ if df is not None and not df.empty:
         
         nb_jours_ecoules = jour_actuel
         
-        # Cumul mois N-1 : MÊME MOIS, année précédente
+        # Cumul mois N-1 : MÊME MOIS, année précédente, MÊME JOUR DE LA SEMAINE
         mois_n_moins_1 = mois_actuel
         annee_n_moins_1 = annee_actuelle - 1
         
+        # Trouver le même jour de semaine l'année précédente (comme pour la comparaison journalière)
+        jour_semaine_n = date_n.strftime('%A')
+        
+        try:
+            date_fin_n_moins_1_approx = date_n.replace(year=annee_n_moins_1)
+        except ValueError:
+            # Cas du 29 février en année non bissextile → utiliser 28 février
+            date_fin_n_moins_1_approx = datetime(annee_n_moins_1, 2, 28)
+        
+        # Chercher le même jour de semaine dans une fenêtre de +/- 3 jours
+        date_fin_n_moins_1 = date_fin_n_moins_1_approx  # Valeur par défaut
+        for delta in range(-3, 4):
+            date_candidate = date_fin_n_moins_1_approx + timedelta(days=delta)
+            if date_candidate.strftime('%A') == jour_semaine_n and date_candidate.month == mois_n_moins_1:
+                date_fin_n_moins_1 = date_candidate
+                break
+        
         debut_mois_n_moins_1 = datetime(annee_n_moins_1, mois_n_moins_1, 1)
         
-        dernier_jour_mois_n_moins_1 = calendar.monthrange(annee_n_moins_1, mois_n_moins_1)[1]
-        jour_fin_n_moins_1 = min(nb_jours_ecoules, dernier_jour_mois_n_moins_1)
-        fin_mois_n_moins_1 = datetime(annee_n_moins_1, mois_n_moins_1, jour_fin_n_moins_1)
-        
-        df_mois_n_moins_1 = df[(df['date'] >= debut_mois_n_moins_1) & (df['date'] <= fin_mois_n_moins_1)]
+        df_mois_n_moins_1 = df[(df['date'] >= debut_mois_n_moins_1) & (df['date'] <= date_fin_n_moins_1)]
         cumul_mois_n_moins_1 = df_mois_n_moins_1['montant'].sum()
+        
+        jour_fin_n_moins_1 = date_fin_n_moins_1.day
+        dernier_jour_mois_n_moins_1 = calendar.monthrange(annee_n_moins_1, mois_n_moins_1)[1]
         
         # Calculer l'objectif : CA mois N-1 complet + 4%
         # On prend le mois COMPLET de N-1 (pas juste les jours écoulés)
@@ -684,10 +700,11 @@ if df is not None and not df.empty:
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
+            jour_semaine_n_moins_1 = date_fin_n_moins_1.strftime('%A')
             st.metric(
                 "Cumul Mois N-1", 
                 formater_euro(cumul_mois_n_moins_1),
-                help=f"Du 1er au {jour_fin_n_moins_1} {calendar.month_name[mois_n_moins_1]} {annee_n_moins_1} ({jour_fin_n_moins_1} jours)"
+                help=f"{jour_semaine_n_moins_1} - Du 1er au {date_fin_n_moins_1.strftime('%d/%m/%Y')} ({jour_fin_n_moins_1} jours)"
             )
         with col2:
             st.metric(
