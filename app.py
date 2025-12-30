@@ -129,52 +129,66 @@ def charger_donnees():
         spreadsheet = client.open_by_key(SPREADSHEET_ID)
         worksheet = spreadsheet.worksheet(SHEET_NAME)
         
-        # Récupérer toutes les données
-        data = worksheet.get_all_records()
+        # Récupérer toutes les données (ligne par ligne)
+        all_values = worksheet.get_all_values()
         
-        if not data:
+        if not all_values or len(all_values) < 2:
             st.warning("⚠️ Aucune donnée trouvée dans Google Sheets")
             return None
         
-        # Convertir en DataFrame
-        df = pd.DataFrame(data)
+        # La première ligne contient les en-têtes, les autres sont les données
+        headers = all_values[0]
+        data_rows = all_values[1:]
+        
+        # Créer le DataFrame manuellement
+        df = pd.DataFrame(data_rows, columns=headers)
         
         # Compter les lignes initiales
         nb_lignes_initiales = len(df)
         
-        # Traiter les colonnes avec parsing robuste des dates
-        df['date'] = pd.to_datetime(df['Date'], errors='coerce', dayfirst=True)
+        # Identifier les colonnes (même avec doublons, on prend les indices)
+        # Colonnes attendues : A=Clé, B=Année, C=Date, D=Jour, E=Mois, F=Valeur, G=Nb_Collaborateurs
         
-        # Nettoyage robuste des montants
-        def nettoyer_montant(valeur):
-            if pd.isna(valeur):
+        # Traiter les colonnes par index pour éviter les problèmes de noms
+        if len(df.columns) >= 7:
+            df['date'] = pd.to_datetime(df.iloc[:, 2], errors='coerce', dayfirst=True)  # Colonne C (index 2)
+            
+            # Nettoyage robuste des montants (colonne F = index 5)
+            def nettoyer_montant(valeur):
+                if pd.isna(valeur) or valeur == '' or valeur == '0':
+                    return 0
+                
+                if isinstance(valeur, (int, float)):
+                    return float(valeur)
+                
+                if isinstance(valeur, str):
+                    import re
+                    valeur_nettoyee = re.sub(r'[^\d,.-]', '', valeur)
+                    valeur_nettoyee = valeur_nettoyee.replace(',', '.')
+                    try:
+                        return float(valeur_nettoyee)
+                    except:
+                        return 0
+                
                 return 0
             
-            if isinstance(valeur, (int, float)):
-                return float(valeur)
-            
-            if isinstance(valeur, str):
-                import re
-                valeur_nettoyee = re.sub(r'[^\d,.-]', '', valeur)
-                valeur_nettoyee = valeur_nettoyee.replace(',', '.')
-                try:
-                    return float(valeur_nettoyee)
-                except:
-                    return 0
-            
-            return 0
-        
-        df['montant'] = df['Valeur'].apply(nettoyer_montant)
-        df['nb_collaborateurs'] = pd.to_numeric(df['Nb_Collaborateurs'], errors='coerce').fillna(0).astype(int)
+            df['montant'] = df.iloc[:, 5].apply(nettoyer_montant)  # Colonne F (index 5)
+            df['nb_collaborateurs'] = pd.to_numeric(df.iloc[:, 6], errors='coerce').fillna(0).astype(int)  # Colonne G (index 6)
+        else:
+            st.error(f"❌ Structure du sheet incorrecte. Colonnes trouvées : {len(df.columns)}")
+            return None
         
         # Compter combien de lignes sont perdues
         nb_dates_invalides = df['date'].isna().sum()
         nb_montants_nuls = (df['montant'] == 0).sum()
         
-        # Filtrer les lignes invalides
-        df_avant_filtre = df.copy()
-        df = df.dropna(subset=['date', 'montant'])
+        # Filtrer uniquement les lignes où date ET montant sont valides
+        df = df.dropna(subset=['date'])
+        df = df[df['montant'] > 0]  # On garde seulement les montants > 0
         nb_lignes_finales = len(df)
+        
+        # Sélectionner seulement les colonnes nécessaires
+        df = df[['date', 'montant', 'nb_collaborateurs']].copy()
         
         # DEBUG : Afficher les statistiques de chargement
         st.sidebar.markdown("### 📊 Statistiques de chargement")
@@ -184,11 +198,11 @@ def charger_donnees():
         st.sidebar.code(f"Lignes chargées : {nb_lignes_finales}")
         
         if nb_lignes_initiales != nb_lignes_finales:
-            st.sidebar.warning(f"⚠️ {nb_lignes_initiales - nb_lignes_finales} lignes exclues !")
+            st.sidebar.warning(f"⚠️ {nb_lignes_initiales - nb_lignes_finales} lignes exclues")
         
         # DEBUG : Montants
         if len(df) > 0:
-            montants_non_nuls = df[df['montant'] > 0]['montant']
+            montants_non_nuls = df['montant']
             if len(montants_non_nuls) > 0:
                 sample = montants_non_nuls.tail(5).tolist()
                 moyenne = montants_non_nuls.mean()
@@ -201,7 +215,7 @@ def charger_donnees():
                 if moyenne > 1000:
                     st.sidebar.warning(f"⚠️ Moyenne élevée : {moyenne:.2f}€")
                     df['montant'] = df['montant'] / 100
-                    nouvelle_moyenne = df[df['montant'] > 0]['montant'].mean()
+                    nouvelle_moyenne = df['montant'].mean()
                     st.sidebar.success(f"✅ Après correction : {nouvelle_moyenne:.2f}€")
                     st.info("✅ Correction appliquée : montants divisés par 100")
         
