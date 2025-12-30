@@ -1122,6 +1122,12 @@ if df is not None and not df.empty:
         mois_ordre = ['Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
                       'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
         
+        # Mapping nom du mois -> numéro du mois
+        mois_mapping = {
+            'Juillet': 7, 'Août': 8, 'Septembre': 9, 'Octobre': 10, 'Novembre': 11, 'Décembre': 12,
+            'Janvier': 1, 'Février': 2, 'Mars': 3, 'Avril': 4, 'Mai': 5, 'Juin': 6
+        }
+        
         # Préparer les données
         monthly_data = []
         for exercice in exercices:
@@ -1129,9 +1135,10 @@ if df is not None and not df.empty:
                 row = {'Exercice': exercice}
                 df_ex = df[df['exercice'] == exercice]
                 
-                for mois in mois_ordre:
-                    montant = df_ex[df_ex['mois'] == mois]['montant'].sum()
-                    row[mois] = montant
+                for mois_nom in mois_ordre:
+                    mois_num = mois_mapping[mois_nom]
+                    montant = df_ex[df_ex['mois'] == mois_num]['montant'].sum()
+                    row[mois_nom] = montant
                 
                 # Ajouter le total annuel
                 row['Total'] = df_ex['montant'].sum()
