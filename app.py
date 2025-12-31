@@ -2035,8 +2035,143 @@ if df is not None and not df.empty:
                 'Statut': statut
             })
         
+        # Calculer les totaux
+        total_objectif = sum(OBJECTIFS_MENSUELS.values())
+        total_realise = 0
+        
+        for mois_nom in mois_ordre:
+            mois_num = mois_mapping[mois_nom]
+            if mois_num >= 7:
+                annee_mois = annee_debut
+            else:
+                annee_mois = annee_debut + 1
+            
+            debut_mois = datetime(annee_mois, mois_num, 1)
+            dernier_jour_mois = calendar.monthrange(annee_mois, mois_num)[1]
+            fin_mois = datetime(annee_mois, mois_num, dernier_jour_mois)
+            
+            df_mois = df[(df['date'] >= debut_mois) & (df['date'] <= fin_mois)]
+            total_realise += df_mois['montant'].sum()
+        
+        total_ecart = total_realise - total_objectif
+        
+        # Ajouter la ligne de TOTAL
+        objectifs_data.append({
+            'Mois': '💰 TOTAL',
+            'Objectif': formater_euro(total_objectif),
+            'Réalisé': formater_euro(total_realise),
+            'Écart': formater_euro(total_ecart),
+            'Statut': '✅' if total_ecart >= 0 else '⚠️'
+        })
+        
         df_objectifs = pd.DataFrame(objectifs_data)
-        st.dataframe(df_objectifs, hide_index=True, use_container_width=True, height=500)
+        st.dataframe(df_objectifs, hide_index=True, use_container_width=True, height=550)
+        
+        # ========== CALCUL DE PRIME ==========
+        if total_ecart > 0:
+            st.markdown("---")
+            st.subheader("🎁 Calcul de Prime Salarié")
+            
+            st.success(f"🎉 **Super performance !** Vous avez un écart positif de **{formater_euro(total_ecart)}**")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.markdown("### 💡 Paramètres de Prime")
+                
+                # Pourcentage de l'écart à distribuer
+                pourcentage_prime = st.slider(
+                    "% de l'écart positif à distribuer en prime",
+                    min_value=0,
+                    max_value=100,
+                    value=30,
+                    step=5,
+                    help="Quel pourcentage de l'écart souhaitez-vous redistribuer ?"
+                )
+                
+                montant_distribuable = total_ecart * (pourcentage_prime / 100)
+                
+                st.metric(
+                    "Montant distribuable",
+                    formater_euro(montant_distribuable),
+                    help="Montant disponible avant charges"
+                )
+            
+            with col2:
+                st.markdown("### 💰 Calcul de la Prime Brute")
+                
+                # En France : charges patronales ≈ 42% du salaire brut
+                taux_charges_patronales = 0.42
+                
+                # Montant brut = Montant distribuable / (1 + charges patronales)
+                prime_brute = montant_distribuable / (1 + taux_charges_patronales)
+                
+                # Coût total pour l'entreprise
+                cout_total = prime_brute * (1 + taux_charges_patronales)
+                
+                # Prime nette approximative (charges salariales ≈ 22%)
+                taux_charges_salariales = 0.22
+                prime_nette_approx = prime_brute * (1 - taux_charges_salariales)
+                
+                st.metric(
+                    "🎯 Prime Brute Salarié",
+                    formater_euro(prime_brute),
+                    help="Montant brut à verser au salarié"
+                )
+                
+                st.metric(
+                    "💵 Prime Nette (approx.)",
+                    formater_euro(prime_nette_approx),
+                    help="Montant net approximatif que recevra le salarié (après charges salariales ~22%)"
+                )
+                
+                st.metric(
+                    "💼 Coût Total Entreprise",
+                    formater_euro(cout_total),
+                    help="Coût total incluant charges patronales (~42%)"
+                )
+            
+            # Tableau récapitulatif
+            st.markdown("---")
+            st.markdown("#### 📊 Récapitulatif")
+            
+            recap_data = {
+                'Étape': [
+                    '1️⃣ Écart positif total',
+                    f'2️⃣ Part distribuée ({pourcentage_prime}%)',
+                    '3️⃣ Prime brute salarié',
+                    '4️⃣ Charges patronales (~42%)',
+                    '5️⃣ Coût total entreprise',
+                    '6️⃣ Prime nette salarié (~78%)'
+                ],
+                'Montant': [
+                    formater_euro(total_ecart),
+                    formater_euro(montant_distribuable),
+                    formater_euro(prime_brute),
+                    formater_euro(prime_brute * taux_charges_patronales),
+                    formater_euro(cout_total),
+                    formater_euro(prime_nette_approx)
+                ]
+            }
+            
+            df_recap = pd.DataFrame(recap_data)
+            st.dataframe(df_recap, hide_index=True, use_container_width=True)
+            
+            st.info("""
+            💡 **Notes importantes :**
+            - Les taux de charges (42% patronales, 22% salariales) sont des estimations moyennes
+            - Les charges réelles dépendent du statut, de la convention collective et du montant
+            - Pour les montants exacts, consultez votre expert-comptable ou gestionnaire de paie
+            - Cette prime peut être versée sous forme de prime exceptionnelle ou de prime sur objectifs
+            """)
+        else:
+            st.markdown("---")
+            st.info(f"""
+            ℹ️ **Pas de prime disponible pour le moment**
+            
+            L'écart actuel est de **{formater_euro(total_ecart)}**. 
+            Continuez vos efforts pour atteindre les objectifs et générer un écart positif !
+            """)
         
         st.markdown("---")
         
