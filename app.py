@@ -344,6 +344,212 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     buffer.seek(0)
     return buffer
 
+def generer_pdf_historique(df, exercices):
+    """Génère un PDF complet de la page Historique avec tous les tableaux"""
+    buffer = BytesIO()
+    
+    # Créer le document en mode paysage pour plus d'espace
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=0.5*cm,
+        leftMargin=0.5*cm,
+        topMargin=1*cm,
+        bottomMargin=0.5*cm
+    )
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Logo
+    try:
+        logo_path = "assets/logo_noir.png"
+        if os.path.exists(logo_path):
+            logo = RLImage(logo_path, width=2.5*cm, height=2.5*cm)
+            elements.append(logo)
+            elements.append(Spacer(1, 0.2*cm))
+    except:
+        pass
+    
+    # Titre principal
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        textColor=colors.black,
+        spaceAfter=8,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    title = Paragraph("Historique par Exercice - L'Atelier de Vincent", title_style)
+    elements.append(title)
+    elements.append(Spacer(1, 0.3*cm))
+    
+    # ========== SECTION 1 : STATISTIQUES PAR EXERCICE ==========
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Heading2'],
+        fontSize=11,
+        textColor=colors.black,
+        spaceAfter=6,
+        fontName='Helvetica-Bold'
+    )
+    elements.append(Paragraph("📊 Statistiques par Exercice", subtitle_style))
+    elements.append(Spacer(1, 0.2*cm))
+    
+    # Préparer les données
+    stats_data = [['Exercice', 'CA Total', 'Jours Travaillés', 'Moy. Collab.', 'CA Moy. Mensuel', 'CA Moy. Jour.']]
+    
+    for exercice in exercices:
+        df_exercice = df[df['exercice'] == exercice]
+        ca_total = df_exercice['montant'].sum()
+        
+        df_avec_ca = df_exercice[df_exercice['montant'] > 0]
+        nb_jours_travailles = len(df_avec_ca)
+        moyenne_collab = df_avec_ca['nb_collaborateurs'].mean() if len(df_avec_ca) > 0 else 0
+        
+        ca_moyen_jour = ca_total / nb_jours_travailles if nb_jours_travailles > 0 else 0
+        ca_moyen_mois = ca_total / 12
+        
+        stats_data.append([
+            exercice,
+            formater_euro(ca_total),
+            str(nb_jours_travailles),
+            f"{moyenne_collab:.1f}",
+            formater_euro(ca_moyen_mois),
+            formater_euro(ca_moyen_jour)
+        ])
+    
+    # Créer le tableau
+    stats_table = Table(stats_data, colWidths=[2.5*cm, 3*cm, 2.5*cm, 2*cm, 3*cm, 2.5*cm])
+    stats_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#A89332')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    
+    elements.append(stats_table)
+    elements.append(Spacer(1, 0.4*cm))
+    
+    # ========== SECTION 2 : MONTANTS MENSUELS PAR EXERCICE ==========
+    elements.append(Paragraph("📊 Montants Mensuels par Exercice", subtitle_style))
+    elements.append(Spacer(1, 0.2*cm))
+    
+    # Préparer les données
+    mois_ordre = ['Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.', 'Janv.', 'Fév.', 'Mars', 'Avr.', 'Mai', 'Juin']
+    mois_mapping = {
+        'Juil.': 7, 'Août': 8, 'Sept.': 9, 'Oct.': 10, 'Nov.': 11, 'Déc.': 12,
+        'Janv.': 1, 'Fév.': 2, 'Mars': 3, 'Avr.': 4, 'Mai': 5, 'Juin': 6
+    }
+    
+    monthly_data = [['Exercice'] + mois_ordre + ['Total']]
+    
+    for exercice in exercices:
+        if exercice >= '2019/2020':
+            row = [exercice]
+            df_ex = df[df['exercice'] == exercice]
+            
+            for mois_nom in mois_ordre:
+                mois_num = mois_mapping[mois_nom]
+                montant = df_ex[df_ex['mois'] == mois_num]['montant'].sum()
+                row.append(f"{montant/1000:.1f}k" if montant >= 1000 else f"{montant:.0f}")
+            
+            total = df_ex['montant'].sum()
+            row.append(formater_euro(total))
+            monthly_data.append(row)
+    
+    # Créer le tableau des montants mensuels
+    col_widths = [2*cm] + [1.3*cm] * 12 + [2.5*cm]
+    monthly_table = Table(monthly_data, colWidths=col_widths)
+    monthly_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#A89332')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 7),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    
+    elements.append(monthly_table)
+    elements.append(Spacer(1, 0.4*cm))
+    
+    # ========== SECTION 3 : COMPARATIF PAR JOUR DE LA SEMAINE ==========
+    elements.append(Paragraph("📅 Tableau Comparatif par Jour de la Semaine", subtitle_style))
+    elements.append(Spacer(1, 0.2*cm))
+    
+    # Mapping des jours
+    jours_en_fr = {
+        'Monday': 'Lundi', 'Tuesday': 'Mardi', 'Wednesday': 'Mercredi',
+        'Thursday': 'Jeudi', 'Friday': 'Vendredi', 'Saturday': 'Samedi', 'Sunday': 'Dimanche'
+    }
+    df['jour_semaine_fr'] = df['jour_semaine'].map(jours_en_fr)
+    jours_ordre = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+    
+    # Préparer les données
+    comparatif_data = [['Jour'] + list(exercices)]
+    
+    for jour in jours_ordre:
+        row = [jour]
+        for exercice in exercices:
+            df_exercice = df[df['exercice'] == exercice]
+            df_jour = df_exercice[df_exercice['jour_semaine_fr'] == jour]
+            ca_jour = df_jour['montant'].sum()
+            row.append(f"{ca_jour/1000:.1f}k" if ca_jour >= 1000 else f"{ca_jour:.0f}")
+        comparatif_data.append(row)
+    
+    # Créer le tableau comparatif
+    nb_exercices = len(exercices)
+    col_widths_comp = [2*cm] + [2*cm] * nb_exercices
+    comparatif_table = Table(comparatif_data, colWidths=col_widths_comp)
+    comparatif_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#A89332')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    
+    elements.append(comparatif_table)
+    
+    # Pied de page
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=TA_CENTER
+    )
+    date_generation = datetime.now().strftime("%d/%m/%Y à %H:%M")
+    footer = Paragraph(f"<i>Document généré le {date_generation} - L'Atelier de Vincent</i>", footer_style)
+    elements.append(Spacer(1, 0.3*cm))
+    elements.append(footer)
+    
+    # Construire le PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
 def enregistrer_transaction(date_saisie, montant, nb_collaborateurs):
     """Enregistre une nouvelle transaction dans Google Sheets"""
     try:
@@ -1073,7 +1279,31 @@ if df is not None and not df.empty:
             st.metric("Évolution %", f"{evolution_pct:+.1f}%")
     
     elif page == "📈 Historique":
-        st.title("📈 Historique par Exercice")
+        # En-tête avec titre et bouton PDF
+        col_titre, col_bouton = st.columns([3, 1])
+        
+        with col_titre:
+            st.title("📈 Historique par Exercice")
+        
+        with col_bouton:
+            # Bouton pour générer et télécharger le PDF
+            if st.button("📄 Générer PDF", use_container_width=True, type="primary"):
+                with st.spinner("Génération du PDF en cours..."):
+                    # Générer le PDF
+                    exercices_temp = sorted(df['exercice'].unique())
+                    pdf_buffer = generer_pdf_historique(df, exercices_temp)
+                    
+                    # Téléchargement
+                    st.download_button(
+                        label="⬇️ Télécharger le PDF",
+                        data=pdf_buffer,
+                        file_name=f"historique_atelier_vincent_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                    st.success("✅ PDF généré avec succès !")
+        
+        st.markdown("---")
         
         # ========== MAPPING DES JOURS EN FRANÇAIS ==========
         # La colonne jour_semaine existe déjà en anglais, on la mappe en français
