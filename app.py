@@ -308,6 +308,22 @@ def afficher_watermark():
     </div>
     """, unsafe_allow_html=True)
 
+# Objectifs mensuels personnalisés pour l'exercice 2025/2026
+OBJECTIFS_MENSUELS = {
+    'Juillet': 11479.52,
+    'Août': 13224.12,
+    'Septembre': 11459.34,
+    'Octobre': 11871.08,
+    'Novembre': 12159.20,
+    'Décembre': 15883.30,
+    'Janvier': 13214.55,
+    'Février': 13937.66,
+    'Mars': 10975.85,
+    'Avril': 14429.69,
+    'Mai': 13870.38,
+    'Juin': 14791.09
+}
+
 
 def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_mois_n_moins_1, total_n, total_n_moins_1, evolution_euro, evolution_pct):
     """Génère un PDF du tableau de suivi mensuel optimisé pour tenir sur une page A4 paysage"""
@@ -1083,21 +1099,64 @@ if df is not None and not df.empty:
             st.subheader("📊 Comparaison Mensuelle")
         
         with col_jauge:
-            # Barre de progression simple
+            # Affichage de l'objectif en haut
             st.markdown(f"**Objectif mois : {formater_euro(objectif_mois)}** (Mois 2024/2025 +4%)")
             
-            # Calcul du pourcentage
-            progress_value = min(pourcentage_objectif / 100, 1.0)  # Entre 0 et 1
+            # Calcul du reste à faire
+            reste_a_faire_mois = max(0, objectif_mois - cumul_mois_n)
             
-            # Afficher la barre de progression
-            st.progress(progress_value)
+            # Créer un graphique en barres empilées
+            import plotly.graph_objects as go
             
-            # Affichage des détails
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.metric("Réalisé", formater_euro(cumul_mois_n))
-            with col_b:
-                st.metric("Progression", f"{pourcentage_objectif:.1f}%")
+            fig_progress = go.Figure()
+            
+            # Barre bleue pour le réalisé
+            fig_progress.add_trace(go.Bar(
+                x=[cumul_mois_n],
+                y=[''],
+                orientation='h',
+                name='Réalisé',
+                marker=dict(color='#3498DB'),
+                text=formater_euro(cumul_mois_n),
+                textposition='inside',
+                textfont=dict(color='white', size=14),
+                hovertemplate='Réalisé: %{x:,.0f}€<extra></extra>'
+            ))
+            
+            # Barre orange pour le reste
+            if reste_a_faire_mois > 0:
+                fig_progress.add_trace(go.Bar(
+                    x=[reste_a_faire_mois],
+                    y=[''],
+                    orientation='h',
+                    name='Reste',
+                    marker=dict(color='#FF8C00'),
+                    text=formater_euro(reste_a_faire_mois),
+                    textposition='inside',
+                    textfont=dict(color='white', size=14),
+                    hovertemplate='Reste: %{x:,.0f}€<extra></extra>'
+                ))
+            
+            fig_progress.update_layout(
+                barmode='stack',
+                showlegend=False,
+                height=80,
+                margin=dict(l=0, r=0, t=0, b=0),
+                xaxis=dict(
+                    showticklabels=False,
+                    showgrid=False,
+                    zeroline=False,
+                    range=[0, objectif_mois]
+                ),
+                yaxis=dict(
+                    showticklabels=False,
+                    showgrid=False
+                ),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            st.plotly_chart(fig_progress, use_container_width=True, config={'displayModeBar': False})
         
         evolution_mois_euro = cumul_mois_n - cumul_mois_n_moins_1
         evolution_mois_pct = (evolution_mois_euro / cumul_mois_n_moins_1 * 100) if cumul_mois_n_moins_1 != 0 else 0
@@ -1914,14 +1973,14 @@ if df is not None and not df.empty:
         st.markdown("---")
         
         # ========== SECTION 4 : OBJECTIFS MENSUELS ==========
-        st.subheader("📅 Objectifs Mensuels Recommandés")
+        st.subheader("📅 Objectifs Mensuels Personnalisés")
         
-        # Calculer l'objectif mensuel moyen
-        objectif_mensuel_moyen = objectif_annuel / 12
+        # Calculer la somme des objectifs mensuels personnalisés
+        total_objectifs_mensuels = sum(OBJECTIFS_MENSUELS.values())
         
         st.markdown(f"""
         Pour atteindre votre objectif de **{formater_euro(objectif_annuel)}** :
-        - 🎯 Objectif mensuel moyen : **{formater_euro(objectif_mensuel_moyen)}**
+        - 🎯 Total des objectifs mensuels : **{formater_euro(total_objectifs_mensuels)}**
         - 📊 CA journalier nécessaire : **{formater_euro(objectif_annuel / jours_travailles_total_estimes)}** (sur {jours_travailles_total_estimes} jours travaillés estimés)
         """)
         
@@ -1937,6 +1996,9 @@ if df is not None and not df.empty:
         objectifs_data = []
         for mois_nom in mois_ordre:
             mois_num = mois_mapping[mois_nom]
+            
+            # Récupérer l'objectif personnalisé pour ce mois
+            objectif_mois_perso = OBJECTIFS_MENSUELS[mois_nom]
             
             # Ajuster l'année selon le mois
             if mois_num >= 7:
@@ -1955,19 +2017,19 @@ if df is not None and not df.empty:
             # Statut
             if fin_mois < date_actuelle:
                 statut = "✅ Terminé"
-                ecart = ca_mois - objectif_mensuel_moyen
+                ecart = ca_mois - objectif_mois_perso
                 ecart_str = f"{formater_euro(ecart)}" if ecart >= 0 else f"{formater_euro(ecart)}"
             elif debut_mois > date_actuelle:
                 statut = "⏳ À venir"
                 ecart_str = "-"
             else:
                 statut = "🔄 En cours"
-                ecart = ca_mois - objectif_mensuel_moyen
+                ecart = ca_mois - objectif_mois_perso
                 ecart_str = f"{formater_euro(ecart)}" if ecart >= 0 else f"{formater_euro(ecart)}"
             
             objectifs_data.append({
                 'Mois': mois_nom,
-                'Objectif': formater_euro(objectif_mensuel_moyen),
+                'Objectif': formater_euro(objectif_mois_perso),
                 'Réalisé': formater_euro(ca_mois) if ca_mois > 0 else "-",
                 'Écart': ecart_str,
                 'Statut': statut
