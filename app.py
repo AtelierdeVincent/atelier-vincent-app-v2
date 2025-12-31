@@ -345,60 +345,70 @@ def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_moi
     return buffer
 
 def generer_pdf_historique(df, exercices):
-    """Génère un PDF complet de la page Historique avec tous les tableaux"""
+    """Génère un PDF complet de la page Historique avec chaque tableau sur une page séparée"""
     buffer = BytesIO()
     
-    # Créer le document en mode paysage pour plus d'espace
+    # Créer le document en mode portrait par défaut
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=landscape(A4),
-        rightMargin=0.5*cm,
-        leftMargin=0.5*cm,
-        topMargin=1*cm,
-        bottomMargin=0.5*cm
+        pagesize=A4,
+        rightMargin=1*cm,
+        leftMargin=1*cm,
+        topMargin=1.5*cm,
+        bottomMargin=1*cm
     )
     
     elements = []
     styles = getSampleStyleSheet()
     
-    # Logo
-    try:
-        logo_path = "assets/logo_noir.png"
-        if os.path.exists(logo_path):
-            logo = RLImage(logo_path, width=2.5*cm, height=2.5*cm)
-            elements.append(logo)
-            elements.append(Spacer(1, 0.2*cm))
-    except:
-        pass
-    
-    # Titre principal
+    # Style des titres
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
         fontSize=16,
         textColor=colors.black,
-        spaceAfter=8,
+        spaceAfter=10,
         alignment=TA_CENTER,
         fontName='Helvetica-Bold'
     )
-    title = Paragraph("Historique par Exercice - L'Atelier de Vincent", title_style)
-    elements.append(title)
-    elements.append(Spacer(1, 0.3*cm))
     
-    # ========== SECTION 1 : STATISTIQUES PAR EXERCICE ==========
     subtitle_style = ParagraphStyle(
         'Subtitle',
         parent=styles['Heading2'],
-        fontSize=11,
+        fontSize=12,
         textColor=colors.black,
-        spaceAfter=6,
+        spaceAfter=8,
         fontName='Helvetica-Bold'
     )
+    
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=TA_CENTER
+    )
+    
+    # ========== PAGE 1 : STATISTIQUES PAR EXERCICE ==========
+    # Logo
+    try:
+        logo_path = "assets/logo_noir.png"
+        if os.path.exists(logo_path):
+            logo = RLImage(logo_path, width=3*cm, height=3*cm)
+            elements.append(logo)
+            elements.append(Spacer(1, 0.3*cm))
+    except:
+        pass
+    
+    elements.append(Paragraph("Historique par Exercice", title_style))
+    elements.append(Paragraph("L'Atelier de Vincent", subtitle_style))
+    elements.append(Spacer(1, 0.5*cm))
+    
     elements.append(Paragraph("📊 Statistiques par Exercice", subtitle_style))
-    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Spacer(1, 0.3*cm))
     
     # Préparer les données
-    stats_data = [['Exercice', 'CA Total', 'Jours Travaillés', 'Moy. Collab.', 'CA Moy. Mensuel', 'CA Moy. Jour.']]
+    stats_data = [['Exercice', 'CA Total', 'Jours\nTravaillés', 'Moy.\nCollab.', 'CA Moyen\nMensuel', 'CA Moyen\nJournalier']]
     
     for exercice in exercices:
         df_exercice = df[df['exercice'] == exercice]
@@ -421,75 +431,155 @@ def generer_pdf_historique(df, exercices):
         ])
     
     # Créer le tableau
-    stats_table = Table(stats_data, colWidths=[2.5*cm, 3*cm, 2.5*cm, 2*cm, 3*cm, 2.5*cm])
+    stats_table = Table(stats_data, colWidths=[2.5*cm, 3.5*cm, 2*cm, 1.8*cm, 3.5*cm, 3.5*cm])
     stats_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#A89332')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
     
     elements.append(stats_table)
-    elements.append(Spacer(1, 0.4*cm))
     
-    # ========== SECTION 2 : MONTANTS MENSUELS PAR EXERCICE ==========
+    # Pied de page
+    date_generation = datetime.now().strftime("%d/%m/%Y à %H:%M")
+    elements.append(Spacer(1, 1*cm))
+    elements.append(Paragraph(f"<i>Page 1/3 - Généré le {date_generation}</i>", footer_style))
+    
+    # Saut de page
+    from reportlab.platypus import PageBreak
+    elements.append(PageBreak())
+    
+    # ========== PAGE 2 : MONTANTS MENSUELS (PORTRAIT - MOIS EN LIGNES) ==========
+    # Logo
+    try:
+        if os.path.exists(logo_path):
+            logo = RLImage(logo_path, width=2.5*cm, height=2.5*cm)
+            elements.append(logo)
+            elements.append(Spacer(1, 0.2*cm))
+    except:
+        pass
+    
     elements.append(Paragraph("📊 Montants Mensuels par Exercice", subtitle_style))
-    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Spacer(1, 0.3*cm))
     
-    # Préparer les données
-    mois_ordre = ['Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.', 'Janv.', 'Fév.', 'Mars', 'Avr.', 'Mai', 'Juin']
+    # Préparer les données avec MOIS EN LIGNES et EXERCICES EN COLONNES
+    mois_ordre = ['Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+                  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
     mois_mapping = {
-        'Juil.': 7, 'Août': 8, 'Sept.': 9, 'Oct.': 10, 'Nov.': 11, 'Déc.': 12,
-        'Janv.': 1, 'Fév.': 2, 'Mars': 3, 'Avr.': 4, 'Mai': 5, 'Juin': 6
+        'Juillet': 7, 'Août': 8, 'Septembre': 9, 'Octobre': 10, 'Novembre': 11, 'Décembre': 12,
+        'Janvier': 1, 'Février': 2, 'Mars': 3, 'Avril': 4, 'Mai': 5, 'Juin': 6
     }
     
-    monthly_data = [['Exercice'] + mois_ordre + ['Total']]
+    # Filtrer les exercices >= 2019/2020
+    exercices_filtre = [ex for ex in exercices if ex >= '2019/2020']
     
-    for exercice in exercices:
-        if exercice >= '2019/2020':
-            row = [exercice]
+    # En-tête : Mois + Exercices
+    monthly_data = [['Mois'] + exercices_filtre]
+    
+    # Chaque ligne = un mois
+    for mois_nom in mois_ordre:
+        row = [mois_nom]
+        mois_num = mois_mapping[mois_nom]
+        
+        for exercice in exercices_filtre:
             df_ex = df[df['exercice'] == exercice]
-            
-            for mois_nom in mois_ordre:
-                mois_num = mois_mapping[mois_nom]
-                montant = df_ex[df_ex['mois'] == mois_num]['montant'].sum()
-                row.append(f"{montant/1000:.1f}k" if montant >= 1000 else f"{montant:.0f}")
-            
-            total = df_ex['montant'].sum()
-            row.append(formater_euro(total))
-            monthly_data.append(row)
+            montant = df_ex[df_ex['mois'] == mois_num]['montant'].sum()
+            row.append(formater_euro(montant))
+        
+        monthly_data.append(row)
     
-    # Créer le tableau des montants mensuels
-    col_widths = [2*cm] + [1.3*cm] * 12 + [2.5*cm]
+    # Ligne Total
+    row_total = ['TOTAL']
+    for exercice in exercices_filtre:
+        df_ex = df[df['exercice'] == exercice]
+        total = df_ex['montant'].sum()
+        row_total.append(formater_euro(total))
+    monthly_data.append(row_total)
+    
+    # Calculer les largeurs de colonnes dynamiquement
+    nb_exercices = len(exercices_filtre)
+    largeur_mois = 2.5*cm
+    largeur_exercice = (19*cm - largeur_mois) / nb_exercices  # 19cm = largeur utilisable
+    col_widths = [largeur_mois] + [largeur_exercice] * nb_exercices
+    
+    # Créer le tableau
     monthly_table = Table(monthly_data, colWidths=col_widths)
     monthly_table.setStyle(TableStyle([
+        # En-tête
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#A89332')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 7),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 6),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        
+        # Colonne Mois
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('FONTNAME', (0, 1), (0, -2), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (0, -2), 8),
+        
+        # Données montants
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (1, 1), (-1, -2), 'Helvetica'),
+        ('FONTSIZE', (1, 1), (-1, -2), 7),
+        
+        # Ligne Total
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#A89332')),
+        ('TEXTCOLOR', (0, -1), (-1, -1), colors.whitesmoke),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, -1), (-1, -1), 8),
+        
+        # Général
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-        ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.lightgrey]),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     
     elements.append(monthly_table)
-    elements.append(Spacer(1, 0.4*cm))
     
-    # ========== SECTION 3 : COMPARATIF PAR JOUR DE LA SEMAINE ==========
-    elements.append(Paragraph("📅 Tableau Comparatif par Jour de la Semaine", subtitle_style))
-    elements.append(Spacer(1, 0.2*cm))
+    # Pied de page
+    elements.append(Spacer(1, 1*cm))
+    elements.append(Paragraph(f"<i>Page 2/3 - Généré le {date_generation}</i>", footer_style))
+    
+    # Saut de page
+    elements.append(PageBreak())
+    
+    # ========== PAGE 3 : COMPARATIF PAR JOUR DE LA SEMAINE (PAYSAGE) ==========
+    # Cette page sera en paysage pour plus d'espace
+    from reportlab.platypus import NextPageTemplate, PageTemplate, Frame
+    
+    # Ajouter un template paysage
+    landscape_frame = Frame(
+        doc.leftMargin,
+        doc.bottomMargin,
+        doc.width,
+        doc.height,
+        id='landscape_frame'
+    )
+    landscape_template = PageTemplate(id='landscape', frames=[landscape_frame], pagesize=landscape(A4))
+    
+    # Note: Pour simplifier, on garde en portrait mais avec une taille de police réduite
+    
+    # Logo
+    try:
+        if os.path.exists(logo_path):
+            logo = RLImage(logo_path, width=2.5*cm, height=2.5*cm)
+            elements.append(logo)
+            elements.append(Spacer(1, 0.2*cm))
+    except:
+        pass
+    
+    elements.append(Paragraph("📅 Comparatif par Jour de la Semaine", subtitle_style))
+    elements.append(Spacer(1, 0.3*cm))
     
     # Mapping des jours
     jours_en_fr = {
@@ -508,42 +598,37 @@ def generer_pdf_historique(df, exercices):
             df_exercice = df[df['exercice'] == exercice]
             df_jour = df_exercice[df_exercice['jour_semaine_fr'] == jour]
             ca_jour = df_jour['montant'].sum()
-            row.append(f"{ca_jour/1000:.1f}k" if ca_jour >= 1000 else f"{ca_jour:.0f}")
+            row.append(formater_euro(ca_jour))
         comparatif_data.append(row)
     
     # Créer le tableau comparatif
-    nb_exercices = len(exercices)
-    col_widths_comp = [2*cm] + [2*cm] * nb_exercices
+    nb_exercices_total = len(exercices)
+    largeur_jour = 2*cm
+    largeur_ex = (19*cm - largeur_jour) / nb_exercices_total
+    col_widths_comp = [largeur_jour] + [largeur_ex] * nb_exercices_total
+    
     comparatif_table = Table(comparatif_data, colWidths=col_widths_comp)
     comparatif_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#A89332')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 0), (-1, 0), 7),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('FONTSIZE', (0, 1), (-1, -1), 6),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     
     elements.append(comparatif_table)
     
     # Pied de page
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=colors.grey,
-        alignment=TA_CENTER
-    )
-    date_generation = datetime.now().strftime("%d/%m/%Y à %H:%M")
-    footer = Paragraph(f"<i>Document généré le {date_generation} - L'Atelier de Vincent</i>", footer_style)
-    elements.append(Spacer(1, 0.3*cm))
-    elements.append(footer)
+    elements.append(Spacer(1, 1*cm))
+    elements.append(Paragraph(f"<i>Page 3/3 - Généré le {date_generation}</i>", footer_style))
     
     # Construire le PDF
     doc.build(elements)
