@@ -2,8 +2,15 @@
 🎯 L'ATELIER DE VINCENT - Application de Gestion CA
 Application web créée avec Streamlit pour remplacer votre Excel
 
+© 2024-2025 Vincent - L'Atelier de Vincent
+Tous droits réservés.
+
+Cette application est la propriété de Vincent.
+Toute reproduction, distribution ou utilisation non autorisée est interdite.
+
 Auteur : Vincent
 Date : Décembre 2024
+Version : 2.0
 """
 
 # ==================== IMPORTS ====================
@@ -292,6 +299,14 @@ def obtenir_badge_reussite(ca_actuel, objectif, pourcentage):
             'message': f'Vous avez réalisé {pourcentage:.1f}% de votre objectif.',
             'couleur': '#95A5A6'  # Gris
         }
+
+def afficher_watermark():
+    """Affiche un watermark discret en bas de page"""
+    st.markdown("""
+    <div style="text-align: center; padding: 20px 0; color: #bdc3c7; font-size: 11px; margin-top: 50px;">
+        <p style="margin: 0;">✂️ Fait avec ❤️ par Vincent | © 2024-2025 L'Atelier de Vincent | Tous droits réservés</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_mois_n_moins_1, total_n, total_n_moins_1, evolution_euro, evolution_pct):
@@ -801,6 +816,17 @@ page = st.sidebar.radio(
 st.sidebar.markdown("---")
 st.sidebar.info("💡 Application créée pour gérer votre chiffre d'affaires")
 
+# ========== FOOTER COPYRIGHT ==========
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+<div style="text-align: center; padding: 10px; color: #7f8c8d; font-size: 12px;">
+    <p style="margin: 5px 0;">✂️ Fait avec ❤️ par <b>Vincent</b></p>
+    <p style="margin: 5px 0;">© 2024-2025 L'Atelier de Vincent</p>
+    <p style="margin: 5px 0; font-size: 10px;">Tous droits réservés</p>
+    <p style="margin: 5px 0; font-size: 10px;">Version 2.0</p>
+</div>
+""", unsafe_allow_html=True)
+
 # ==================== VÉRIFICATION MOT DE PASSE ====================
 
 if not verifier_mot_de_passe():
@@ -1251,6 +1277,9 @@ if df is not None and not df.empty:
                         st.error(message)
                         
         st.markdown("---")
+        
+        # Watermark
+        afficher_watermark()
 
 
 
@@ -1449,6 +1478,9 @@ if df is not None and not df.empty:
     
         with col4:
             st.metric("Évolution %", f"{evolution_pct:+.1f}%")
+        
+        # Watermark
+        afficher_watermark()
     
     elif page == "📈 Historique":
         # En-tête avec titre et bouton PDF
@@ -1673,6 +1705,9 @@ if df is not None and not df.empty:
                         st.info(f"🏆 Meilleur jour : **{meilleur_jour}**\n\n{meilleur_ca}")
                 
                 st.markdown("---")
+        
+        # Watermark
+        afficher_watermark()
     
     elif page == "🔮 Prévisions":
         st.title("🔮 Prévisions et Objectifs")
@@ -1978,6 +2013,9 @@ if df is not None and not df.empty:
                 - Maintenir le rythme actuel
                 - Objectif en vue !
                 """)
+        
+        # Watermark
+        afficher_watermark()
     
     elif page == "💰 Calculateur Financier":
         st.title("💰 Calculateur Financier")
@@ -1995,10 +2033,16 @@ if df is not None and not df.empty:
         except FileNotFoundError:
             st.error("❌ Fichier Calculateur_Salon.html introuvable")
             st.info("💡 Assurez-vous que le fichier Calculateur_Salon.html est présent à la racine de votre application")
+        
+        # Watermark
+        afficher_watermark()
     
     elif page == "⚙️ Données brutes":
         st.title("⚙️ Données brutes")
         st.dataframe(df, use_container_width=True)
+        
+        # Watermark
+        afficher_watermark()
 
 else:
     st.error("❌ Impossible de charger les données depuis Google Sheets")
