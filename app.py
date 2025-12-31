@@ -221,6 +221,79 @@ def formater_euro(montant):
     """Formate un nombre en euros français"""
     return f"{montant:,.2f} €".replace(",", " ").replace(".", ",")
 
+def obtenir_citation_du_jour():
+    """Retourne une citation motivante qui change chaque jour"""
+    citations = [
+        "💪 Chaque jour est une nouvelle opportunité de briller !",
+        "✨ Le succès, c'est la somme de petits efforts répétés jour après jour.",
+        "🎯 La seule façon de faire du bon travail, c'est d'aimer ce que vous faites.",
+        "🌟 Votre attitude détermine votre altitude.",
+        "💼 Le succès n'est pas la clé du bonheur. Le bonheur est la clé du succès.",
+        "🚀 Croyez en vous et tout devient possible.",
+        "⭐ La passion est l'énergie qui maintient tout en marche.",
+        "🎨 Votre travail est une œuvre d'art qui se construit chaque jour.",
+        "💎 L'excellence n'est pas une destination, c'est un voyage continu.",
+        "🏆 Le succès commence par la volonté de l'atteindre.",
+        "🌈 Aujourd'hui est rempli de possibilités infinies.",
+        "💫 Chaque client est une opportunité de créer quelque chose de magnifique.",
+        "🎯 La régularité bat le talent quand le talent ne travaille pas.",
+        "🌟 Votre énergie positive attire le succès.",
+        "💪 La persévérance transforme l'impossible en possible.",
+        "✂️ Chaque coupe est une signature, chaque client une histoire.",
+        "🎨 L'art de la coiffure, c'est l'art de sublimer les personnes.",
+        "💼 Un professionnel n'attend pas l'inspiration, il crée les conditions du succès.",
+        "🚀 Petit à petit, l'oiseau fait son nid - et vous bâtissez votre empire.",
+        "⭐ Votre savoir-faire mérite le succès que vous construisez chaque jour.",
+        "🌟 L'investissement en soi-même rapporte toujours les meilleurs intérêts.",
+        "💎 La qualité n'est jamais un accident ; c'est toujours le résultat d'un effort intelligent.",
+        "🏆 Ce que vous faites aujourd'hui peut améliorer tous vos lendemains.",
+        "🌈 Le meilleur moment pour planter un arbre était il y a 20 ans. Le deuxième meilleur moment, c'est maintenant.",
+        "💫 Votre travail est le reflet de qui vous êtes. Rendez-le remarquable !",
+        "🎯 Le secret du succès : commencer avant d'être prêt.",
+        "✨ Vos clients ne paient pas pour une coupe, ils paient pour votre expertise.",
+        "💪 La discipline est le pont entre les objectifs et les accomplissements.",
+        "🚀 Ne comptez pas les jours, faites que les jours comptent.",
+        "⭐ Votre attitude d'aujourd'hui façonne votre réussite de demain."
+    ]
+    
+    # Utilise la date du jour pour sélectionner une citation (change chaque jour)
+    from datetime import datetime
+    jour_annee = datetime.now().timetuple().tm_yday
+    index = jour_annee % len(citations)
+    return citations[index]
+
+def obtenir_badge_reussite(ca_actuel, objectif, pourcentage):
+    """Retourne un badge de réussite selon la performance"""
+    if ca_actuel >= objectif:
+        return {
+            'emoji': '🏆',
+            'titre': 'OBJECTIF ATTEINT !',
+            'message': f'Félicitations ! Vous avez dépassé votre objectif de {pourcentage:.1f}% !',
+            'couleur': '#2ECC71'  # Vert
+        }
+    elif pourcentage >= 95:
+        return {
+            'emoji': '🎯',
+            'titre': 'PRESQUE !',
+            'message': f'Plus que {objectif - ca_actuel:,.0f}€ pour atteindre votre objectif !',
+            'couleur': '#F39C12'  # Orange
+        }
+    elif pourcentage >= 80:
+        return {
+            'emoji': '💪',
+            'titre': 'BON RYTHME !',
+            'message': f'Vous êtes à {pourcentage:.1f}% de votre objectif. Continuez !',
+            'couleur': '#3498DB'  # Bleu
+        }
+    else:
+        return {
+            'emoji': '🚀',
+            'titre': 'EN ROUTE !',
+            'message': f'Vous avez réalisé {pourcentage:.1f}% de votre objectif.',
+            'couleur': '#95A5A6'  # Gris
+        }
+
+
 def generer_pdf_suivi(donnees_tableau, mois_selectionne, annee_mois_n, annee_mois_n_moins_1, total_n, total_n_moins_1, evolution_euro, evolution_pct):
     """Génère un PDF du tableau de suivi mensuel optimisé pour tenir sur une page A4 paysage"""
     buffer = BytesIO()
@@ -722,7 +795,7 @@ st.sidebar.markdown(f"📋 Sheet ID : `{SPREADSHEET_ID[:10]}...`")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["🏠 Accueil", "📊 Suivi", "📈 Historique", "💰 Calculateur Financier", "⚙️ Données brutes"]
+    ["🏠 Accueil", "📊 Suivi", "📈 Historique", "🔮 Prévisions", "💰 Calculateur Financier", "⚙️ Données brutes"]
 )
 
 st.sidebar.markdown("---")
@@ -761,6 +834,10 @@ if df is not None and not df.empty:
         
         st.markdown("### 👋 Bonjour Vincent !")
         
+        # ========== CITATION MOTIVANTE DU JOUR ==========
+        citation = obtenir_citation_du_jour()
+        st.info(citation)
+        
         derniere_date_str = derniere_date.strftime("%d/%m/%Y")
         st.markdown(f"### Voici où nous en sommes à la date du : **{derniere_date_str}**")
         
@@ -776,6 +853,16 @@ if df is not None and not df.empty:
         
         # Pourcentage de progression
         pourcentage_progression = (ca_actuel / objectif_ca * 100) if objectif_ca > 0 else 0
+        
+        # ========== BADGE DE RÉUSSITE ==========
+        badge = obtenir_badge_reussite(ca_actuel, objectif_ca, pourcentage_progression)
+        
+        st.markdown(f"""
+        <div style="background-color: {badge['couleur']}; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0;">
+            <h1 style="color: white; margin: 0;">{badge['emoji']} {badge['titre']}</h1>
+            <p style="color: white; font-size: 18px; margin: 10px 0 0 0;">{badge['message']}</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Créer le graphique gauge (jauge)
         fig_gauge = px.pie(
@@ -1586,6 +1673,311 @@ if df is not None and not df.empty:
                         st.info(f"🏆 Meilleur jour : **{meilleur_jour}**\n\n{meilleur_ca}")
                 
                 st.markdown("---")
+    
+    elif page == "🔮 Prévisions":
+        st.title("🔮 Prévisions et Objectifs")
+        
+        # ========== CONFIGURATION DE L'EXERCICE ==========
+        exercice_actuel = "2025/2026"
+        objectif_annuel = 157000  # Objectif annuel en euros
+        
+        # Calculer les dates de début et fin de l'exercice
+        annee_debut = int(exercice_actuel.split('/')[0])
+        debut_exercice = datetime(annee_debut, 7, 1)
+        fin_exercice = datetime(annee_debut + 1, 6, 30)
+        
+        # Date du jour
+        date_actuelle = derniere_date
+        
+        # Filtrer les données de l'exercice en cours
+        df_exercice = df[(df['date'] >= debut_exercice) & (df['date'] <= date_actuelle)]
+        ca_actuel = df_exercice['montant'].sum()
+        
+        # Calculer les jours écoulés et restants
+        jours_ecoules = (date_actuelle - debut_exercice).days + 1
+        jours_totaux_exercice = (fin_exercice - debut_exercice).days + 1
+        jours_restants = jours_totaux_exercice - jours_ecoules
+        
+        # Calculer les jours travaillés (jours avec CA > 0)
+        jours_travailles = len(df_exercice[df_exercice['montant'] > 0])
+        
+        # ========== SECTION 1 : VUE D'ENSEMBLE ==========
+        st.subheader(f"📊 Exercice {exercice_actuel} - Vue d'ensemble")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                "🎯 Objectif Annuel",
+                formater_euro(objectif_annuel),
+                help="Objectif basé sur 2024/2025 + 4%"
+            )
+        
+        with col2:
+            st.metric(
+                "💰 CA Actuel",
+                formater_euro(ca_actuel),
+                f"{(ca_actuel / objectif_annuel * 100):.1f}% atteint"
+            )
+        
+        with col3:
+            st.metric(
+                "📅 Jours Écoulés",
+                f"{jours_ecoules} / {jours_totaux_exercice}",
+                f"{(jours_ecoules / jours_totaux_exercice * 100):.1f}% de l'année"
+            )
+        
+        with col4:
+            reste_a_faire = objectif_annuel - ca_actuel
+            st.metric(
+                "🎯 Reste à Faire",
+                formater_euro(reste_a_faire) if reste_a_faire > 0 else "Objectif atteint ! 🎉",
+                f"{jours_restants} jours restants"
+            )
+        
+        st.markdown("---")
+        
+        # ========== SECTION 2 : PROJECTION ==========
+        st.subheader("📈 Projection de Fin d'Exercice")
+        
+        # Calculer le CA moyen journalier (sur jours travaillés)
+        ca_moyen_jour = ca_actuel / jours_travailles if jours_travailles > 0 else 0
+        
+        # Estimer le nombre de jours travaillés restants (environ 80% des jours calendaires)
+        jours_travailles_restants_estimes = int(jours_restants * (jours_travailles / jours_ecoules))
+        
+        # Projection basée sur la tendance actuelle
+        projection_ca = ca_actuel + (ca_moyen_jour * jours_travailles_restants_estimes)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric(
+                "📊 CA Moyen par Jour Travaillé",
+                formater_euro(ca_moyen_jour),
+                f"{jours_travailles} jours travaillés"
+            )
+            
+            st.metric(
+                "🔮 Projection Fin d'Exercice",
+                formater_euro(projection_ca),
+                f"{((projection_ca - objectif_annuel) / objectif_annuel * 100):+.1f}% vs objectif"
+            )
+        
+        with col2:
+            # Graphique de projection
+            fig_projection = {
+                "data": [
+                    {
+                        "type": "indicator",
+                        "mode": "gauge+number+delta",
+                        "value": projection_ca,
+                        "domain": {"x": [0, 1], "y": [0, 1]},
+                        "title": {"text": "<b>Projection vs Objectif</b>", "font": {"size": 14}},
+                        "delta": {"reference": objectif_annuel, "valueformat": ",.0f", "suffix": " €"},
+                        "number": {"valueformat": ",.0f", "suffix": " €", "font": {"size": 24}},
+                        "gauge": {
+                            "axis": {"range": [None, objectif_annuel * 1.1], "tickformat": ",.0f"},
+                            "bar": {"color": "#3498DB"},
+                            "steps": [
+                                {"range": [0, objectif_annuel], "color": "#E5E5E5"}
+                            ],
+                            "threshold": {
+                                "line": {"color": "#A89332", "width": 4},
+                                "thickness": 0.75,
+                                "value": objectif_annuel
+                            }
+                        }
+                    }
+                ],
+                "layout": {
+                    "margin": {"t": 50, "b": 20, "l": 20, "r": 20},
+                    "height": 300
+                }
+            }
+            
+            st.plotly_chart(fig_projection, use_container_width=True, config={'displayModeBar': False})
+        
+        # Message selon projection
+        if projection_ca >= objectif_annuel:
+            ecart_projection = projection_ca - objectif_annuel
+            st.success(f"🎉 **Excellente nouvelle !** Si vous maintenez ce rythme, vous dépasserez votre objectif de **{formater_euro(ecart_projection)}** !")
+        else:
+            manque_projection = objectif_annuel - projection_ca
+            st.warning(f"⚠️ **Attention :** Au rythme actuel, vous seriez à **{formater_euro(manque_projection)}** de votre objectif. Il faudra accélérer !")
+        
+        st.markdown("---")
+        
+        # ========== SECTION 3 : SIMULATEUR ==========
+        st.subheader("🎮 Simulateur d'Objectifs")
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.markdown("**💡 Si je fais X€ par jour de travail, quel sera mon CA annuel ?**")
+            
+            ca_simule_jour = st.number_input(
+                "CA journalier simulé (€)",
+                min_value=0.0,
+                max_value=1000.0,
+                value=ca_moyen_jour,
+                step=10.0,
+                help="Modifiez ce montant pour voir l'impact"
+            )
+            
+            # Estimation du nombre de jours travaillés total pour l'exercice
+            taux_jours_travailles = jours_travailles / jours_ecoules if jours_ecoules > 0 else 0.7
+            jours_travailles_total_estimes = int(jours_totaux_exercice * taux_jours_travailles)
+            
+            ca_annuel_simule = ca_simule_jour * jours_travailles_total_estimes
+            
+            st.metric(
+                "🎯 CA Annuel Projeté",
+                formater_euro(ca_annuel_simule),
+                f"{((ca_annuel_simule - objectif_annuel) / objectif_annuel * 100):+.1f}% vs objectif"
+            )
+            
+            st.info(f"📅 Basé sur environ **{jours_travailles_total_estimes} jours travaillés** dans l'année")
+        
+        with col2:
+            # Graphique comparatif
+            scenarios = pd.DataFrame({
+                'Scénario': ['Rythme actuel', 'Scénario simulé', 'Objectif'],
+                'CA': [projection_ca, ca_annuel_simule, objectif_annuel],
+                'Type': ['Projection', 'Simulation', 'Objectif']
+            })
+            
+            fig_scenarios = px.bar(
+                scenarios,
+                x='Scénario',
+                y='CA',
+                color='Type',
+                color_discrete_map={
+                    'Projection': '#3498DB',
+                    'Simulation': '#9B59B6',
+                    'Objectif': '#A89332'
+                },
+                text='CA',
+                title="Comparaison des Scénarios"
+            )
+            
+            fig_scenarios.update_traces(
+                texttemplate='%{text:,.0f}€',
+                textposition='outside'
+            )
+            
+            fig_scenarios.update_layout(
+                showlegend=False,
+                height=350,
+                yaxis_title="CA Annuel (€)",
+                yaxis_tickformat=",.0f",
+                xaxis_title=""
+            )
+            
+            st.plotly_chart(fig_scenarios, use_container_width=True, config={'displayModeBar': False})
+        
+        st.markdown("---")
+        
+        # ========== SECTION 4 : OBJECTIFS MENSUELS ==========
+        st.subheader("📅 Objectifs Mensuels Recommandés")
+        
+        # Calculer l'objectif mensuel moyen
+        objectif_mensuel_moyen = objectif_annuel / 12
+        
+        st.markdown(f"""
+        Pour atteindre votre objectif de **{formater_euro(objectif_annuel)}** :
+        - 🎯 Objectif mensuel moyen : **{formater_euro(objectif_mensuel_moyen)}**
+        - 📊 CA journalier nécessaire : **{formater_euro(objectif_annuel / jours_travailles_total_estimes)}** (sur {jours_travailles_total_estimes} jours travaillés estimés)
+        """)
+        
+        # Tableau des objectifs mensuels
+        mois_ordre = ['Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+                      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
+        
+        mois_mapping = {
+            'Juillet': 7, 'Août': 8, 'Septembre': 9, 'Octobre': 10, 'Novembre': 11, 'Décembre': 12,
+            'Janvier': 1, 'Février': 2, 'Mars': 3, 'Avril': 4, 'Mai': 5, 'Juin': 6
+        }
+        
+        objectifs_data = []
+        for mois_nom in mois_ordre:
+            mois_num = mois_mapping[mois_nom]
+            
+            # Ajuster l'année selon le mois
+            if mois_num >= 7:
+                annee_mois = annee_debut
+            else:
+                annee_mois = annee_debut + 1
+            
+            # CA réalisé pour ce mois
+            debut_mois = datetime(annee_mois, mois_num, 1)
+            dernier_jour_mois = calendar.monthrange(annee_mois, mois_num)[1]
+            fin_mois = datetime(annee_mois, mois_num, dernier_jour_mois)
+            
+            df_mois = df[(df['date'] >= debut_mois) & (df['date'] <= fin_mois)]
+            ca_mois = df_mois['montant'].sum()
+            
+            # Statut
+            if fin_mois < date_actuelle:
+                statut = "✅ Terminé"
+                ecart = ca_mois - objectif_mensuel_moyen
+                ecart_str = f"{formater_euro(ecart)}" if ecart >= 0 else f"{formater_euro(ecart)}"
+            elif debut_mois > date_actuelle:
+                statut = "⏳ À venir"
+                ecart_str = "-"
+            else:
+                statut = "🔄 En cours"
+                ecart = ca_mois - objectif_mensuel_moyen
+                ecart_str = f"{formater_euro(ecart)}" if ecart >= 0 else f"{formater_euro(ecart)}"
+            
+            objectifs_data.append({
+                'Mois': mois_nom,
+                'Objectif': formater_euro(objectif_mensuel_moyen),
+                'Réalisé': formater_euro(ca_mois) if ca_mois > 0 else "-",
+                'Écart': ecart_str,
+                'Statut': statut
+            })
+        
+        df_objectifs = pd.DataFrame(objectifs_data)
+        st.dataframe(df_objectifs, hide_index=True, use_container_width=True, height=500)
+        
+        st.markdown("---")
+        
+        # ========== SECTION 5 : CONSEILS ==========
+        st.subheader("💡 Conseils pour Atteindre l'Objectif")
+        
+        ca_necessaire_jour = (objectif_annuel - ca_actuel) / jours_travailles_restants_estimes if jours_travailles_restants_estimes > 0 else 0
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.info(f"""
+            **📊 Performance Actuelle**
+            - CA/jour : {formater_euro(ca_moyen_jour)}
+            - {jours_travailles} jours travaillés
+            """)
+        
+        with col2:
+            st.warning(f"""
+            **🎯 Cible Nécessaire**
+            - CA/jour : {formater_euro(ca_necessaire_jour)}
+            - {jours_travailles_restants_estimes} jours restants estimés
+            """)
+        
+        with col3:
+            ecart_jour = ca_necessaire_jour - ca_moyen_jour
+            if ecart_jour > 0:
+                st.error(f"""
+                **⚡ Effort Supplémentaire**
+                - +{formater_euro(ecart_jour)}/jour
+                - soit +{((ecart_jour / ca_moyen_jour * 100)):.1f}%
+                """)
+            else:
+                st.success(f"""
+                **🎉 Vous êtes au-dessus !**
+                - Maintenir le rythme actuel
+                - Objectif en vue !
+                """)
     
     elif page == "💰 Calculateur Financier":
         st.title("💰 Calculateur Financier")
