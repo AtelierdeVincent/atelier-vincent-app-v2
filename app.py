@@ -2035,9 +2035,9 @@ if df is not None and not df.empty:
                 'Statut': statut
             })
         
-        # Calculer les totaux
-        total_objectif = sum(OBJECTIFS_MENSUELS.values())
-        total_realise = 0
+        # Calculer les totaux UNIQUEMENT pour les mois écoulés ou en cours
+        total_objectif_ecoule = 0
+        total_realise_ecoule = 0
         
         for mois_nom in mois_ordre:
             mois_num = mois_mapping[mois_nom]
@@ -2050,16 +2050,26 @@ if df is not None and not df.empty:
             dernier_jour_mois = calendar.monthrange(annee_mois, mois_num)[1]
             fin_mois = datetime(annee_mois, mois_num, dernier_jour_mois)
             
-            df_mois = df[(df['date'] >= debut_mois) & (df['date'] <= fin_mois)]
-            total_realise += df_mois['montant'].sum()
+            # Ne compter que les mois dont la fin est <= date actuelle
+            if fin_mois <= date_actuelle:
+                # Mois terminé
+                total_objectif_ecoule += OBJECTIFS_MENSUELS[mois_nom]
+                df_mois = df[(df['date'] >= debut_mois) & (df['date'] <= fin_mois)]
+                total_realise_ecoule += df_mois['montant'].sum()
+            elif debut_mois <= date_actuelle < fin_mois:
+                # Mois en cours
+                total_objectif_ecoule += OBJECTIFS_MENSUELS[mois_nom]
+                df_mois = df[(df['date'] >= debut_mois) & (df['date'] <= date_actuelle)]
+                total_realise_ecoule += df_mois['montant'].sum()
+            # Sinon, mois futur : on ne compte pas
         
-        total_ecart = total_realise - total_objectif
+        total_ecart = total_realise_ecoule - total_objectif_ecoule
         
-        # Ajouter la ligne de TOTAL
+        # Ajouter la ligne de TOTAL (mois écoulés/en cours uniquement)
         objectifs_data.append({
-            'Mois': '💰 TOTAL',
-            'Objectif': formater_euro(total_objectif),
-            'Réalisé': formater_euro(total_realise),
+            'Mois': '💰 TOTAL (en cours)',
+            'Objectif': formater_euro(total_objectif_ecoule),
+            'Réalisé': formater_euro(total_realise_ecoule),
             'Écart': formater_euro(total_ecart),
             'Statut': '✅' if total_ecart >= 0 else '⚠️'
         })
@@ -2067,12 +2077,22 @@ if df is not None and not df.empty:
         df_objectifs = pd.DataFrame(objectifs_data)
         st.dataframe(df_objectifs, hide_index=True, use_container_width=True, height=550)
         
+        # Note explicative
+        st.info("""
+        ℹ️ **Note :** Le total affiché ne prend en compte que les mois **écoulés et en cours**. 
+        Les mois futurs ne sont pas inclus dans le calcul de l'écart.
+        """)
+        
         # ========== CALCUL DE PRIME ==========
         if total_ecart > 0:
             st.markdown("---")
             st.subheader("🎁 Calcul de Prime Salarié")
             
-            st.success(f"🎉 **Super performance !** Vous avez un écart positif de **{formater_euro(total_ecart)}**")
+            st.success(f"""
+            🎉 **Super performance !** 
+            
+            Sur les mois écoulés/en cours, vous avez un écart positif de **{formater_euro(total_ecart)}** par rapport aux objectifs.
+            """)
             
             col1, col2 = st.columns([1, 1])
             
@@ -2169,7 +2189,7 @@ if df is not None and not df.empty:
             st.info(f"""
             ℹ️ **Pas de prime disponible pour le moment**
             
-            L'écart actuel est de **{formater_euro(total_ecart)}**. 
+            Sur les mois écoulés/en cours, l'écart par rapport aux objectifs est de **{formater_euro(total_ecart)}**. 
             Continuez vos efforts pour atteindre les objectifs et générer un écart positif !
             """)
         
