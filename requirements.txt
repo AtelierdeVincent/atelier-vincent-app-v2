@@ -1,21 +1,7 @@
-# L'Atelier de Vincent - Requirements pour Streamlit Cloud
-# Version LIGHT - Sans OCR
-
-# Core Streamlit et données
-streamlit>=1.30.0
+streamlit>=1.28.0
 pandas>=2.0.0
-
-# Graphiques et visualisation  
-plotly>=5.18.0
-
-# Google Sheets
+plotly>=5.17.0
+openpyxl>=3.1.0
+reportlab>=4.0.0
 gspread>=5.12.0
 google-auth>=2.23.0
-google-auth-oauthlib>=1.1.0
-google-auth-httplib2>=0.1.1
-
-# Génération de PDF
-reportlab>=4.0.0
-
-# Scanner de factures (VERSION LIGHT - seulement pour afficher l'image)
-pillow>=10.0.0
