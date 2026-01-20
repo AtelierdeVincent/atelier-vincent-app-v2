@@ -1,11 +1,11 @@
-# L'Atelier de Vincent - Requirements
-# Application de gestion CA avec scanner de factures
+# L'Atelier de Vincent - Requirements pour Streamlit Cloud
+# Version LIGHT - Sans OCR
 
 # Core Streamlit et données
 streamlit>=1.30.0
 pandas>=2.0.0
 
-# Graphiques et visualisation
+# Graphiques et visualisation  
 plotly>=5.18.0
 
 # Google Sheets
@@ -17,9 +17,5 @@ google-auth-httplib2>=0.1.1
 # Génération de PDF
 reportlab>=4.0.0
 
-# Scanner de factures (NOUVELLES DÉPENDANCES)
+# Scanner de factures (VERSION LIGHT - seulement pour afficher l'image)
 pillow>=10.0.0
-numpy>=1.24.0
-easyocr>=1.7.0
-torch>=2.0.0
-torchvision>=0.15.0

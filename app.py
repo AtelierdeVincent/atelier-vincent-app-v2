@@ -32,9 +32,7 @@ from reportlab.lib.enums import TA_CENTER
 from io import BytesIO
 import gspread
 from google.oauth2.service_account import Credentials
-import numpy as np
 from PIL import Image
-import re
 
 # Configuration du locale français (avec gestion d'erreur pour Streamlit Cloud)
 try:
@@ -126,126 +124,10 @@ def get_gsheet_client():
         st.error(f"❌ Erreur de connexion à Google Sheets : {e}")
         return None
 
-# ==================== FONCTIONS SCANNER DE FACTURES ====================
+# ==================== FONCTIONS SCANNER DE FACTURES (VERSION LIGHT) ====================
 
-def extract_text_from_image_easyocr(image):
-    """Extraction de texte avec EasyOCR"""
-    try:
-        import easyocr
-        reader = easyocr.Reader(['fr', 'en'], gpu=False)
-        result = reader.readtext(image)
-        text = '\n'.join([detection[1] for detection in result])
-        return text
-    except ImportError:
-        st.error("EasyOCR n'est pas installé. Installez-le avec : pip install easyocr")
-        return None
-
-def parse_invoice_products(text):
-    """Parse le texte pour extraire les produits, quantités et prix"""
-    products = []
-    lines = text.split('\n')
-    
-    for i, line in enumerate(lines):
-        line = line.strip()
-        if not line:
-            continue
-            
-        # Pattern pour trouver des prix
-        price_pattern = r'(\d+[.,]\d{2})\s*€?'
-        prices = re.findall(price_pattern, line)
-        
-        # Pattern pour trouver des quantités
-        qty_pattern = r'\b(\d+)\s*(?:x|X|pcs?|pièces?|unités?|u\b)'
-        quantities = re.findall(qty_pattern, line)
-        
-        if prices:
-            product_name = line
-            quantity = 1
-            unit_price = None
-            total_price = None
-            
-            # Nettoyer le nom du produit
-            for price in prices:
-                product_name = product_name.replace(price, '')
-            for qty in quantities:
-                product_name = product_name.replace(f'{qty}x', '')
-                product_name = product_name.replace(f'{qty} x', '')
-                
-            product_name = product_name.replace('€', '').strip()
-            
-            # Extraire quantité
-            if quantities:
-                quantity = int(quantities[0])
-            
-            # Extraire prix
-            if len(prices) >= 2:
-                unit_price = float(prices[-2].replace(',', '.'))
-                total_price = float(prices[-1].replace(',', '.'))
-            elif len(prices) == 1:
-                total_price = float(prices[0].replace(',', '.'))
-                unit_price = total_price / quantity if quantity > 0 else total_price
-            
-            if len(product_name) > 3 and total_price is not None:
-                products.append({
-                    'Produit': product_name,
-                    'Quantité': quantity,
-                    'Prix unitaire': round(unit_price, 2) if unit_price else None,
-                    'Prix total': round(total_price, 2)
-                })
-    
-    return products
-
-def extract_invoice_info(text):
-    """Extrait les informations générales de la facture"""
-    info = {
-        'date': None,
-        'fournisseur': None,
-        'numero': None,
-        'total': None
-    }
-    
-    lines = text.split('\n')
-    
-    # Recherche de la date
-    date_patterns = [
-        r'(\d{2}[/\.-]\d{2}[/\.-]\d{4})',
-        r'(\d{2}[/\.-]\d{2}[/\.-]\d{2})'
-    ]
-    for line in lines:
-        for pattern in date_patterns:
-            match = re.search(pattern, line)
-            if match:
-                info['date'] = match.group(1)
-                break
-        if info['date']:
-            break
-    
-    # Recherche du numéro de facture
-    for line in lines[:10]:
-        if 'facture' in line.lower() or 'invoice' in line.lower():
-            num_match = re.search(r'(?:n°|no|#)\s*(\w+[-/]?\w+)', line, re.IGNORECASE)
-            if num_match:
-                info['numero'] = num_match.group(1)
-    
-    # Recherche du fournisseur
-    for line in lines[:5]:
-        if len(line.strip()) > 5 and not re.search(r'\d', line):
-            if not any(keyword in line.lower() for keyword in ['facture', 'invoice', 'date', 'client']):
-                info['fournisseur'] = line.strip()
-                break
-    
-    # Recherche du total
-    for line in reversed(lines[-10:]):
-        if 'total' in line.lower():
-            price_match = re.search(r'(\d+[.,]\d{2})\s*€?', line)
-            if price_match:
-                info['total'] = float(price_match.group(1).replace(',', '.'))
-                break
-    
-    return info
-
-def export_facture_to_gsheet(df, invoice_info):
-    """Exporter une facture vers Google Sheets"""
+def export_facture_to_gsheet_light(df, invoice_info):
+    """Exporter une facture vers Google Sheets - Version light"""
     try:
         client = get_gsheet_client()
         if not client:
@@ -264,6 +146,13 @@ def export_facture_to_gsheet(df, invoice_info):
                 "Produit", "Quantité", "Prix unitaire", "Prix total", "Catégorie", "Notes"
             ]
             worksheet.append_row(headers)
+            
+            # Formater l'en-tête
+            worksheet.format('A1:J1', {
+                "backgroundColor": {"red": 0.17, "green": 0.42, "blue": 0.65},
+                "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}},
+                "horizontalAlignment": "CENTER"
+            })
         
         # Préparer les données
         date_scan = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -279,11 +168,11 @@ def export_facture_to_gsheet(df, invoice_info):
                 fournisseur,
                 numero,
                 row['Produit'],
-                row['Quantité'],
-                row.get('Prix unitaire', ''),
-                row['Prix total'],
-                '',
-                ''
+                int(row['Quantité']),
+                float(row['Prix unitaire']),
+                float(row['Prix total']),
+                '',  # Catégorie
+                ''   # Notes
             ])
         
         if rows_to_add:
@@ -291,6 +180,7 @@ def export_facture_to_gsheet(df, invoice_info):
             return True
         
         return False
+        
     except Exception as e:
         st.error(f"Erreur lors de l'export : {e}")
         return False
@@ -2408,167 +2298,264 @@ if df is not None and not df.empty:
     
     elif page == "📄 Scanner factures":
         st.title("📄 Scanner de Factures")
-        st.markdown("Scannez vos factures et extrayez automatiquement les produits")
+        st.markdown("Enregistrez rapidement vos factures fournisseurs")
         st.markdown("---")
         
-        # Choix de la méthode OCR
-        ocr_method = st.sidebar.selectbox(
-            "Méthode OCR",
-            ["EasyOCR (recommandé)"],
-            help="EasyOCR est plus facile à installer et fonctionne sans dépendances système"
-        )
-        
-        # Upload de fichier
+        # Option : Upload image pour référence visuelle
         uploaded_file = st.file_uploader(
-            "📸 Télécharger une facture (image)",
+            "📸 Photo de la facture (optionnel - pour référence visuelle)",
             type=['png', 'jpg', 'jpeg'],
-            help="Formats acceptés : PNG, JPG, JPEG"
+            help="Uploadez une photo pour la voir pendant la saisie"
         )
         
-        if uploaded_file is not None:
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                st.subheader("📷 Image de la facture")
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            if uploaded_file:
+                st.subheader("📷 Facture")
                 image = Image.open(uploaded_file)
                 st.image(image, use_container_width=True)
-                
-                # Bouton d'extraction
-                if st.button("🔍 Extraire les produits", type="primary"):
-                    with st.spinner("Extraction en cours..."):
-                        # Convertir PIL Image en numpy array pour EasyOCR
-                        image_array = np.array(image)
-                        extracted_text = extract_text_from_image_easyocr(image_array)
-                        
-                        if extracted_text:
-                            # Sauvegarder dans session state
-                            st.session_state['extracted_text'] = extracted_text
-                            st.session_state['invoice_info'] = extract_invoice_info(extracted_text)
-                            st.session_state['products'] = parse_invoice_products(extracted_text)
-                            st.success("✅ Extraction terminée !")
-                            st.rerun()
-            
-            with col2:
-                st.subheader("📝 Résultats de l'extraction")
-                
-                if 'extracted_text' in st.session_state:
-                    # Afficher les infos de la facture
-                    st.markdown("#### 📋 Informations de la facture")
-                    info = st.session_state['invoice_info']
-                    
-                    col_info1, col_info2 = st.columns(2)
-                    with col_info1:
-                        date_facture = st.text_input("Date", value=info.get('date', ''))
-                        fournisseur = st.text_input("Fournisseur", value=info.get('fournisseur', ''))
-                    
-                    with col_info2:
-                        numero = st.text_input("Numéro", value=info.get('numero', ''))
-                        total_facture = st.number_input("Total", value=info.get('total', 0.0), format="%.2f")
-                    
-                    # Mettre à jour invoice_info avec les modifications
-                    st.session_state['invoice_info']['date'] = date_facture
-                    st.session_state['invoice_info']['fournisseur'] = fournisseur
-                    st.session_state['invoice_info']['numero'] = numero
-                    st.session_state['invoice_info']['total'] = total_facture
-                    
-                    st.markdown("---")
-                    st.markdown("#### 🛒 Produits détectés")
-                    
-                    # Afficher les produits dans un dataframe éditable
-                    if st.session_state['products']:
-                        df = pd.DataFrame(st.session_state['products'])
-                        
-                        # Dataframe éditable
-                        edited_df = st.data_editor(
-                            df,
-                            num_rows="dynamic",
-                            use_container_width=True,
-                            column_config={
-                                "Produit": st.column_config.TextColumn("Produit", width="large"),
-                                "Quantité": st.column_config.NumberColumn("Quantité", min_value=0, format="%d"),
-                                "Prix unitaire": st.column_config.NumberColumn("Prix unitaire", format="%.2f €"),
-                                "Prix total": st.column_config.NumberColumn("Prix total", format="%.2f €"),
-                            }
-                        )
-                        
-                        st.markdown("---")
-                        
-                        # Actions
-                        col_btn1, col_btn2, col_btn3 = st.columns(3)
-                        
-                        with col_btn1:
-                            if st.button("💾 Sauvegarder en CSV"):
-                                csv = edited_df.to_csv(index=False, encoding='utf-8-sig')
-                                st.download_button(
-                                    label="📥 Télécharger CSV",
-                                    data=csv,
-                                    file_name=f"facture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                                    mime="text/csv"
-                                )
-                        
-                        with col_btn2:
-                            if st.button("📊 Sauvegarder dans Google Sheets"):
-                                with st.spinner("Sauvegarde en cours..."):
-                                    success = export_facture_to_gsheet(edited_df, st.session_state['invoice_info'])
-                                    if success:
-                                        st.success("✅ Facture sauvegardée dans Google Sheets !")
-                                        st.balloons()
-                                    else:
-                                        st.error("❌ Erreur lors de la sauvegarde")
-                        
-                        with col_btn3:
-                            if st.button("🔄 Nouvelle facture"):
-                                for key in ['extracted_text', 'invoice_info', 'products']:
-                                    if key in st.session_state:
-                                        del st.session_state[key]
-                                st.rerun()
-                        
-                        # Afficher le total
-                        total_calcule = edited_df['Prix total'].sum()
-                        st.metric("Total calculé", f"{total_calcule:.2f} €")
-                        
-                    else:
-                        st.warning("⚠️ Aucun produit détecté automatiquement. Vous pouvez en ajouter manuellement.")
-                        
-                        # Permettre l'ajout manuel
-                        if st.button("➕ Ajouter un produit manuellement"):
-                            st.session_state['products'] = [{
-                                'Produit': '',
-                                'Quantité': 1,
-                                'Prix unitaire': 0.0,
-                                'Prix total': 0.0
-                            }]
-                            st.rerun()
-                    
-                    # Expander pour voir le texte brut
-                    with st.expander("👁️ Voir le texte extrait (debug)"):
-                        st.text_area("Texte OCR", st.session_state['extracted_text'], height=300)
-        else:
-            st.info("""
-            ### 💡 Comment utiliser le scanner :
-            
-            1. **Prenez une photo** de votre facture ou scannez-la
-            2. **Uploadez l'image** en cliquant sur le bouton ci-dessus
-            3. **Cliquez sur "Extraire"** pour lancer l'analyse automatique
-            4. **Vérifiez et corrigez** les données extraites si nécessaire
-            5. **Sauvegardez** en CSV ou directement dans Google Sheets
-            
-            ### 📸 Conseils pour de meilleurs résultats :
-            
-            - ✅ Image nette et bien éclairée
-            - ✅ Facture bien droite (pas penchée)
-            - ✅ Bon contraste entre le texte et le fond
-            - ✅ Résolution suffisante
-            """)
+            else:
+                st.info("💡 Vous pouvez uploader une photo de votre facture pour la voir pendant la saisie, ou saisir directement les informations.")
         
-        # Installation EasyOCR
-        with st.expander("🔧 Installation d'EasyOCR"):
-            st.code("pip install easyocr", language="bash")
-            st.info("""
-            **Note :** Au premier lancement, EasyOCR téléchargera automatiquement 
-            les modèles de reconnaissance (français et anglais). Cela peut prendre 
-            quelques minutes selon votre connexion.
-            """)
+        with col2:
+            st.subheader("📝 Informations de la facture")
+            
+            # Infos générales
+            col_info1, col_info2 = st.columns(2)
+            
+            with col_info1:
+                date_facture = st.date_input(
+                    "Date facture",
+                    value=datetime.now()
+                )
+                
+                # Liste des fournisseurs courants
+                fournisseurs_courants = [
+                    "L'Oréal Professionnel",
+                    "Wella",
+                    "Schwarzkopf",
+                    "Kérastase",
+                    "Goldwell",
+                    "Autre"
+                ]
+                
+                fournisseur_select = st.selectbox(
+                    "Fournisseur",
+                    fournisseurs_courants
+                )
+                
+                if fournisseur_select == "Autre":
+                    fournisseur = st.text_input("Nom du fournisseur")
+                else:
+                    fournisseur = fournisseur_select
+            
+            with col_info2:
+                numero = st.text_input("Numéro de facture")
+                total_facture = st.number_input(
+                    "Total facture (€)",
+                    min_value=0.0,
+                    value=0.0,
+                    format="%.2f"
+                )
+            
+            st.markdown("---")
+            st.subheader("🛒 Produits")
+            
+            # Initialiser le DataFrame dans session_state si nécessaire
+            if 'products_manual' not in st.session_state:
+                st.session_state['products_manual'] = pd.DataFrame({
+                    'Produit': [''],
+                    'Quantité': [1],
+                    'Prix unitaire': [0.0],
+                    'Prix total': [0.0]
+                })
+            
+            # Templates de produits courants
+            st.markdown("**🎨 Templates produits courants :**")
+            col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+            
+            with col_t1:
+                if st.button("➕ Inoa"):
+                    new_row = pd.DataFrame({
+                        'Produit': ['Inoa '],
+                        'Quantité': [1],
+                        'Prix unitaire': [15.80],
+                        'Prix total': [15.80]
+                    })
+                    st.session_state['products_manual'] = pd.concat([
+                        st.session_state['products_manual'],
+                        new_row
+                    ], ignore_index=True)
+                    st.rerun()
+            
+            with col_t2:
+                if st.button("➕ Majirel"):
+                    new_row = pd.DataFrame({
+                        'Produit': ['Majirel '],
+                        'Quantité': [1],
+                        'Prix unitaire': [12.50],
+                        'Prix total': [12.50]
+                    })
+                    st.session_state['products_manual'] = pd.concat([
+                        st.session_state['products_manual'],
+                        new_row
+                    ], ignore_index=True)
+                    st.rerun()
+            
+            with col_t3:
+                if st.button("➕ Koleston"):
+                    new_row = pd.DataFrame({
+                        'Produit': ['Koleston '],
+                        'Quantité': [1],
+                        'Prix unitaire': [14.00],
+                        'Prix total': [14.00]
+                    })
+                    st.session_state['products_manual'] = pd.concat([
+                        st.session_state['products_manual'],
+                        new_row
+                    ], ignore_index=True)
+                    st.rerun()
+            
+            with col_t4:
+                if st.button("➕ Ligne vide"):
+                    new_row = pd.DataFrame({
+                        'Produit': [''],
+                        'Quantité': [1],
+                        'Prix unitaire': [0.0],
+                        'Prix total': [0.0]
+                    })
+                    st.session_state['products_manual'] = pd.concat([
+                        st.session_state['products_manual'],
+                        new_row
+                    ], ignore_index=True)
+                    st.rerun()
+            
+            st.markdown("---")
+            
+            # Éditeur de produits
+            edited_df = st.data_editor(
+                st.session_state['products_manual'],
+                num_rows="dynamic",
+                use_container_width=True,
+                column_config={
+                    "Produit": st.column_config.TextColumn(
+                        "Produit",
+                        width="large",
+                        help="Nom du produit + teinte si applicable"
+                    ),
+                    "Quantité": st.column_config.NumberColumn(
+                        "Qté",
+                        min_value=0,
+                        format="%d"
+                    ),
+                    "Prix unitaire": st.column_config.NumberColumn(
+                        "Prix unit.",
+                        format="%.2f €",
+                        help="Prix unitaire HT"
+                    ),
+                    "Prix total": st.column_config.NumberColumn(
+                        "Total",
+                        format="%.2f €",
+                        help="Prix total HT"
+                    ),
+                },
+                hide_index=True,
+                key="product_editor"
+            )
+            
+            # Mettre à jour le session state
+            st.session_state['products_manual'] = edited_df
+            
+            # Auto-calcul des totaux
+            if st.button("🔄 Recalculer les totaux"):
+                for idx, row in st.session_state['products_manual'].iterrows():
+                    if row['Quantité'] > 0 and row['Prix unitaire'] > 0:
+                        st.session_state['products_manual'].at[idx, 'Prix total'] = \
+                            row['Quantité'] * row['Prix unitaire']
+                st.rerun()
+            
+            # Afficher le total
+            total_calcule = edited_df['Prix total'].sum()
+            
+            col_total1, col_total2 = st.columns(2)
+            with col_total1:
+                st.metric("Total calculé", f"{total_calcule:.2f} €")
+            with col_total2:
+                if total_facture > 0:
+                    ecart = abs(total_calcule - total_facture)
+                    if ecart < 0.1:
+                        st.success("✅ Correspond au total facture")
+                    else:
+                        st.warning(f"⚠️ Écart de {ecart:.2f} €")
+            
+            st.markdown("---")
+            
+            # Actions
+            col_btn1, col_btn2, col_btn3 = st.columns(3)
+            
+            with col_btn1:
+                csv = edited_df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="💾 Télécharger CSV",
+                    data=csv,
+                    file_name=f"facture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            
+            with col_btn2:
+                if st.button("📊 Sauvegarder dans Sheets", use_container_width=True, type="primary"):
+                    if not fournisseur:
+                        st.error("⚠️ Veuillez renseigner le fournisseur")
+                    elif len(edited_df[edited_df['Produit'].str.strip() != '']) == 0:
+                        st.error("⚠️ Veuillez ajouter au moins un produit")
+                    else:
+                        with st.spinner("Sauvegarde en cours..."):
+                            invoice_info = {
+                                'date': date_facture.strftime('%d/%m/%Y'),
+                                'fournisseur': fournisseur,
+                                'numero': numero,
+                                'total': total_facture
+                            }
+                            
+                            # Filtrer les lignes vides
+                            df_to_save = edited_df[edited_df['Produit'].str.strip() != ''].copy()
+                            
+                            success = export_facture_to_gsheet_light(df_to_save, invoice_info)
+                            
+                            if success:
+                                st.success("✅ Facture sauvegardée dans Google Sheets !")
+                                st.balloons()
+                            else:
+                                st.error("❌ Erreur lors de la sauvegarde")
+            
+            with col_btn3:
+                if st.button("🔄 Nouvelle facture", use_container_width=True):
+                    st.session_state['products_manual'] = pd.DataFrame({
+                        'Produit': [''],
+                        'Quantité': [1],
+                        'Prix unitaire': [0.0],
+                        'Prix total': [0.0]
+                    })
+                    st.rerun()
+            
+            # Conseils d'utilisation
+            with st.expander("💡 Conseils d'utilisation"):
+                st.markdown("""
+                ### Pour aller plus vite :
+                
+                1. **Utilisez les templates** : Cliquez sur "➕ Inoa", "➕ Majirel", etc. pour ajouter rapidement des produits courants
+                2. **Modifiez directement** dans le tableau : double-cliquez sur une cellule pour la modifier
+                3. **Ajoutez des lignes** : Cliquez sur "➕" en bas du tableau ou utilisez "➕ Ligne vide"
+                4. **Supprimez des lignes** : Cliquez sur la corbeille à gauche de chaque ligne
+                5. **Recalculez** : Si vous modifiez les quantités ou prix unitaires, cliquez sur "Recalculer"
+                
+                ### Astuces :
+                - Pour les teintes, ajoutez-les au nom : "Inoa 6.0", "Majirel 7.1", etc.
+                - Le total calculé doit correspondre au total de la facture
+                - Vous pouvez uploader une photo de la facture pour la voir pendant la saisie
+                """)
         
         # Watermark
         afficher_watermark()
