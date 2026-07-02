@@ -1814,12 +1814,14 @@ if df is not None and not df.empty:
         debut_exercice = datetime(annee_debut, 7, 1)
         fin_exercice = datetime(annee_debut + 1, 6, 30)
         
-        # Date de référence : aujourd'hui si exercice en cours ou futur, sinon fin d'exercice
+        # Date de référence :
+        # - exercice passé (fin_exercice < aujourd'hui) -> 30 juin de cet exercice
+        # - exercice en cours/futur -> aujourd'hui (sans brider par derniere_date)
         aujourd_hui = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        if aujourd_hui <= fin_exercice:
-            date_actuelle = min(aujourd_hui, derniere_date)
-        else:
+        if aujourd_hui > fin_exercice:
             date_actuelle = fin_exercice
+        else:
+            date_actuelle = max(aujourd_hui, debut_exercice)
         
         # Filtrer les données de l'exercice sélectionné (borné par début ET fin d'exercice)
         df_exercice = df[(df['date'] >= debut_exercice) & (df['date'] <= min(date_actuelle, fin_exercice))]
