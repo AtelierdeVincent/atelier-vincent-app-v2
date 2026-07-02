@@ -883,14 +883,21 @@ if df is not None and not df.empty:
         derniere_date_str = derniere_date.strftime("%d/%m/%Y")
         st.markdown(f"### Voici où nous en sommes à la date du : **{derniere_date_str}**")
         
-        # ========== GRAPHIQUE DE PROGRESSION EXERCICE 2025/2026 ==========
+        # ========== GRAPHIQUE DE PROGRESSION EXERCICE EN COURS ==========
         
-        # Calculer le CA actuel de l'exercice 2025/2026
-        exercice_actuel = "2025/2026"
-        objectif_ca = 157000  # Objectif en euros
+        # Calculer dynamiquement l'exercice en cours (juillet-juin)
+        _auj = datetime.now()
+        if _auj.month >= 7:
+            exercice_actuel = f"{_auj.year}/{_auj.year + 1}"
+        else:
+            exercice_actuel = f"{_auj.year - 1}/{_auj.year}"
+        objectif_ca = 157000  # Objectif annuel en euros
         
-        # Filtrer les données de l'exercice 2025/2026
-        df_exercice_actuel = df[df['exercice'] == exercice_actuel]
+        # Filtrer les données de l'exercice en cours uniquement (borné par les dates de l'exercice)
+        _annee_ex = int(exercice_actuel.split('/')[0])
+        _debut_ex = datetime(_annee_ex, 7, 1)
+        _fin_ex = datetime(_annee_ex + 1, 6, 30)
+        df_exercice_actuel = df[(df['date'] >= _debut_ex) & (df['date'] <= _fin_ex)]
         ca_actuel = df_exercice_actuel['montant'].sum()
         
         # Pourcentage de progression
@@ -1814,8 +1821,8 @@ if df is not None and not df.empty:
         else:
             date_actuelle = fin_exercice
         
-        # Filtrer les données de l'exercice sélectionné
-        df_exercice = df[(df['date'] >= debut_exercice) & (df['date'] <= date_actuelle)]
+        # Filtrer les données de l'exercice sélectionné (borné par début ET fin d'exercice)
+        df_exercice = df[(df['date'] >= debut_exercice) & (df['date'] <= min(date_actuelle, fin_exercice))]
         ca_actuel = df_exercice['montant'].sum()
         
         # Calculer les jours écoulés et restants
