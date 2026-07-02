@@ -1772,18 +1772,49 @@ if df is not None and not df.empty:
         st.title("🔮 Prévisions et Objectifs")
         
         # ========== CONFIGURATION DE L'EXERCICE ==========
-        exercice_actuel = "2025/2026"
-        objectif_annuel = 157000  # Objectif annuel en euros
+        # Détecter automatiquement les exercices disponibles dans les données
+        exercices_disponibles = sorted(df['exercice'].unique().tolist(), reverse=True)
+        
+        # Ajouter l'exercice futur s'il n'est pas encore dans les données
+        exercice_futur = f"{datetime.now().year}/{datetime.now().year + 1}" if datetime.now().month >= 7 else f"{datetime.now().year - 1}/{datetime.now().year}"
+        if exercice_futur not in exercices_disponibles:
+            exercices_disponibles.insert(0, exercice_futur)
+        
+        col_cfg1, col_cfg2 = st.columns([1, 2])
+        
+        with col_cfg1:
+            exercice_actuel = st.selectbox(
+                "📅 Exercice",
+                options=exercices_disponibles,
+                index=0,
+                help="Sélectionnez l'exercice fiscal à analyser"
+            )
+        
+        with col_cfg2:
+            objectif_annuel = st.number_input(
+                "🎯 Objectif annuel (€)",
+                min_value=0,
+                max_value=500000,
+                value=157000,
+                step=1000,
+                help="Modifiez l'objectif de CA annuel pour cet exercice"
+            )
+        
+        st.markdown("---")
         
         # Calculer les dates de début et fin de l'exercice
         annee_debut = int(exercice_actuel.split('/')[0])
         debut_exercice = datetime(annee_debut, 7, 1)
         fin_exercice = datetime(annee_debut + 1, 6, 30)
         
-        # Date du jour
-        date_actuelle = derniere_date
+        # Date de référence : aujourd'hui si exercice en cours ou futur, sinon fin d'exercice
+        aujourd_hui = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        if aujourd_hui <= fin_exercice:
+            date_actuelle = min(aujourd_hui, derniere_date)
+        else:
+            date_actuelle = fin_exercice
         
-        # Filtrer les données de l'exercice en cours
+        # Filtrer les données de l'exercice sélectionné
         df_exercice = df[(df['date'] >= debut_exercice) & (df['date'] <= date_actuelle)]
         ca_actuel = df_exercice['montant'].sum()
         
@@ -1804,7 +1835,7 @@ if df is not None and not df.empty:
             st.metric(
                 "🎯 Objectif Annuel",
                 formater_euro(objectif_annuel),
-                help="Objectif basé sur 2024/2025 + 4%"
+                help=f"Objectif annuel pour l'exercice {exercice_actuel}"
             )
         
         with col2:
